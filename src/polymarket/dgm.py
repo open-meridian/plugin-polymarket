@@ -1,7 +1,7 @@
 """The `dgm`: a venue's binary event contracts into the lake, converted at the
 edge.
 
-The same module in meridian-kalshi and meridian-polymarket: what differs
+The same module in plugin-kalshi and plugin-polymarket: what differs
 between the two venues is read in each plugin's `convert.py` into the values
 of market.py, and everything from there to the lake is here, once.
 

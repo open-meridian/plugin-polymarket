@@ -1,7 +1,7 @@
 """Polymarket's side of the shared tests: this plugin's synthetic exchanges,
 named for what each of the dgm suite's cases asks a source to present.
 
-tests/test_suite.py, the same file in meridian-kalshi, runs the SDK's `dgm`
+tests/test_suite.py, the same file in plugin-kalshi, runs the SDK's `dgm`
 suite unchanged against each plugin's own conversion; this module is the one
 place it learns which venue it is holding. Each answer comes through the
 plugin's real client, raw records and reading (synthetic.py's transport over

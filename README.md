@@ -1,4 +1,4 @@
-# meridian-polymarket
+# plugin-polymarket
 
 Polymarket's public market data for its outcome tokens in an Open Meridian
 deployment's lake: a `dgm` plugin. For each outcome token a deployment's
@@ -8,7 +8,7 @@ and offer with their sizes as a quote, every figure exactly as Polymarket
 stated it. No key: Polymarket's market data is public.
 
 It is the second half of the lake's second batch, with
-[meridian-kalshi](https://github.com/open-meridian/meridian-kalshi): the two
+[plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): the two
 pass one `dgm` suite unchanged between them (meridian-design
 `plans/the-lake-prices-the-book.md`, row 20).
 

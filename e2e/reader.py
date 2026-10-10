@@ -7,7 +7,7 @@ names by reading it (W3.6); `reporting` to read and hear prices; and
 `signal` to read and hear quotes, which `reporting` does not read (the
 plan's Q9).
 
-The same file in meridian-kalshi and meridian-polymarket. It is not the
+The same file in plugin-kalshi and plugin-polymarket. It is not the
 plugin, and is never built into its image: `make e2e` runs it from this file
 in a container of the plugin's image, which carries the SDK, beside the
 plugin on core's harness. It answers its page as JSON for the harness's

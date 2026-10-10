@@ -2,7 +2,7 @@
 sidecar, and the synthetic exchanges this package carries stand in for the
 venue (tests/venue_cases.py says which venue).
 
-The same file in meridian-kalshi and meridian-polymarket (`make
+The same file in plugin-kalshi and plugin-polymarket (`make
 suite-same`)."""
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 record and nothing else read from the venue, prices and quotes per contract
 in the venue's cash, the payout, wants, standing wants, and the venue.
 
-The same file in meridian-kalshi and meridian-polymarket (`make
+The same file in plugin-kalshi and plugin-polymarket (`make
 suite-same`), run against each plugin's synthetic exchange
 (tests/venue_cases.py) and a recorder answering batches as the lake does
 (conftest.Lake).

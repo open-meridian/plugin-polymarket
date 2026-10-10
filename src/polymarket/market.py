@@ -1,7 +1,7 @@
 """What a venue's event contracts come to before they become the lake's rows:
 the venue's own words read, nothing of the contract's yet.
 
-The same module in meridian-kalshi and meridian-polymarket. Each plugin's
+The same module in plugin-kalshi and plugin-polymarket. Each plugin's
 `convert.py` reads its venue's responses into these values -- every number a
 `Decimal` from the venue's own text, never a float; a value that would not
 read kept as the venue sent it -- and `dgm.py`, the same in both, turns them

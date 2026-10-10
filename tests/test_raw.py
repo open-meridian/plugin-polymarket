@@ -1,7 +1,7 @@
 """The raw responses in storage: a unit a day, and each day past its window
 archived, kept or deleted through the SDK, never today's.
 
-The same file in meridian-kalshi and meridian-polymarket (`make suite-same`)."""
+The same file in plugin-kalshi and plugin-polymarket (`make suite-same`)."""
 
 from __future__ import annotations
 

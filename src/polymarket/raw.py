@@ -1,6 +1,6 @@
 """The venue's raw responses, kept as the plugin's raw records (decisions/028).
 
-The same module in meridian-kalshi and meridian-polymarket.
+The same module in plugin-kalshi and plugin-polymarket.
 
 Every response the venue sends -- an error and a rate limit as much as a
 book -- is kept before anything is read from it, exactly as its bytes

@@ -24,7 +24,7 @@ it.
   `Decimal` from Polymarket's text, never through a `float`. `synthetic.py`
   answers instead of Polymarket in synthetic mode: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
-- **Everything from there to the lake is shared with meridian-kalshi, byte
+- **Everything from there to the lake is shared with plugin-kalshi, byte
   for byte**: `market.py`, `dgm.py`, `contracts.py`, `raw.py`, `page.py` and
   its two templates, the tests `test_suite.py`, `test_dgm.py`,
   `test_page.py`, `test_raw.py` and `conftest.py`, and `e2e/reader.py`
@@ -34,7 +34,7 @@ it.
   `preview.py`, and `tests/venue_cases.py`, the one test module that knows
   which venue this is.
 - **The lake's rules, which the SDK's `dgm` suite holds** (`tests/test_suite.py`
-  runs it, unchanged from meridian-kalshi's): per subject wanted, never the
+  runs it, unchanged from plugin-kalshi's): per subject wanted, never the
   whole venue -- read its record (`resolve_instrument`, W3.6) and name
   Polymarket's token by its identifiers (the token's ID as a `symbol` whose
   source is `polymarket`, else another source's symbol that Polymarket

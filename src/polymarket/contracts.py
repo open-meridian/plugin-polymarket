@@ -3,7 +3,7 @@ for a pair"): which of the venue's binary event contracts each subject the
 lake asked for is, each contract as the venue last stated it, and the
 deployment's instrument the venue's cash resolved to.
 
-The same module in meridian-kalshi and meridian-polymarket.
+The same module in plugin-kalshi and plugin-polymarket.
 
 **Per subject wanted, never the whole venue.** The lake wants instruments by
 the deployment's ID; the plugin reads each record (W3.6, a dgm's from

@@ -41,7 +41,7 @@ from .raw import RawStore
 
 GAMMA = "https://gamma-api.polymarket.com"
 CLOB = "https://clob.polymarket.com"
-USER_AGENT = "meridian-polymarket (+https://open-meridian.dev)"
+USER_AGENT = "plugin-polymarket (+https://open-meridian.dev)"
 
 #: What the plugin spends: five a second, in bursts of five.
 RATE_PER_SECOND = 5.0

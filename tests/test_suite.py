@@ -1,6 +1,6 @@
 """The SDK's `dgm` suite, run unchanged against this plugin's own conversion.
 
-The same file in meridian-kalshi and meridian-polymarket (`make suite-same`
+The same file in plugin-kalshi and plugin-polymarket (`make suite-same`
 holds the two copies to each other): the plan's "one suite unchanged between
 the two". Each of the suite's cases (meridian.suites, contract v19) is mapped
 to the plugin's own synthetic exchange for it, named in tests/venue_cases.py,

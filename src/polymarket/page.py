@@ -1,6 +1,6 @@
 """The plugin's pages, under Manage: its Connection and its Datasets.
 
-The same module in meridian-kalshi and meridian-polymarket, the venue's
+The same module in plugin-kalshi and plugin-polymarket, the venue's
 names read from convert.py.
 
 A `dgm` shows no market data (ruled 2026-10-03: "The data unit only cares for

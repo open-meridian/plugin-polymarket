@@ -1,6 +1,6 @@
 """The pages, Connection and Datasets, and their read tools.
 
-The same file in meridian-kalshi and meridian-polymarket (`make
+The same file in plugin-kalshi and plugin-polymarket (`make
 suite-same`). Asked in-process as the sidecar would ask them
 (`meridian.testing`), after the plugin has answered wants on its synthetic
 exchange: each page is served under Manage alone, shows no price, bid,
