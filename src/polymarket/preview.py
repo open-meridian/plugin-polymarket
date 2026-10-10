@@ -1,0 +1,121 @@
+"""The pages as a deployment admin would see them, on synthetic data, each
+printed as one HTML file: for looking at them without a deployment.
+
+    python -m polymarket.preview connection > preview/connection.html
+    python -m polymarket.preview datasets > preview/datasets.html
+    python -m polymarket.preview datasets-search > preview/datasets-search.html
+
+The page links the kit where the dashboard serves it, /.meridian/ui/<version>/,
+so serve it beside the kit to see it styled (meridian-ui's `make serve`);
+opened on its own it is the page without the kit, unstyled, which works too.
+
+There is no sidecar here: the SDK's `Recorder` answers as one would, the
+deployment holding two records of Polymarket's synthetic outcome tokens (one
+by Polymarket's token ID, one by a custodian's symbol) and one of a market
+of three outcomes, which is not binary, the venue answers from the synthetic
+exchanges this package carries, and the lake asks for the latest of each
+many times and keeps two current, as a reader would make it, so the
+Datasets page has wants to page through; `datasets-search` is the same page
+searched.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import sys
+import tempfile
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.suites import Recorder
+from meridian.testing import PageClient
+
+from .contracts import ContractMap
+from .convert import PolymarketMarket
+from .dgm import Dgm
+from .page import hold, pages
+from .raw import RawStore
+from .synthetic import Synthetic
+from .venue import Polymarket
+
+#: The preview's clock: 2026-10-10 12:00 UTC.
+NOW_NS = 1_791_633_600 * 1_000_000_000
+
+#: Synthetic outcome tokens: a final's YES, a comet's YES, a colour of three.
+YES = "71321045679252212594626385532706912750332728571942532289631379312455583992563"
+COMET = "20000000000000000000000000000000000000000000000000000000000000000000000000029"
+COLOUR = "30000000000000000000000000000000000000000000000000000000000000000000000000041"
+#: The deployment's records the lake asks about.
+RECORDS = {
+    "LCL-polymarket-final-yes": [ops.Identifier(scheme="symbol", value=YES, source="polymarket")],
+    "LCL-custodian-comet-yes": [ops.Identifier(scheme="symbol", value=COMET, source="custodian")],
+    "LCL-custodian-colour": [ops.Identifier(scheme="symbol", value=COLOUR, source="custodian")],
+}
+#: What the Datasets page's search is shown with, as `datasets-search`.
+SEARCHED = "kept current"
+
+
+def _record(params: Any) -> Any:
+    held = RECORDS.get(params.instrument_id)
+    record = ops.InstrumentRecord(instrument_id=params.instrument_id, identifiers=held or [])
+    return ops.ResolveInstrumentResult(found=held is not None, instrument=record)
+
+
+def _resolved(params: Any) -> Any:
+    for instrument_id, held in RECORDS.items():
+        if any(i in held for i in params.identifiers):
+            return ops.ResolveIdentifierResult(found=True, instrument_id=instrument_id)
+    return ops.ResolveIdentifierResult(found=True, instrument_id="LCL-usdc")
+
+
+def _delivering(want: ops.ObservationsWantedEvent) -> Callable[[Any], Any]:
+    return lambda _: want
+
+
+async def _worked() -> Dgm:
+    lake = Recorder("polymarket")
+    lake.answer("ResolveIdentifier", _resolved)
+    lake.answer("ResolveInstrument", _record)
+    store = RawStore(Path(tempfile.mkdtemp(prefix="polymarket-preview-")))
+    client = Polymarket(store, transport=Synthetic(), clock_ns=lambda: NOW_NS)
+    dgm = Dgm(lake, PolymarketMarket(client, "synthetic"), ContractMap(), clock_ns=lambda: NOW_NS)
+    subjects = list(RECORDS)
+    for n in range(30):
+        want = ops.ObservationsWantedEvent(
+            want_id=f"WNT-{n:04d}",
+            dataset="polymarket:live",
+            data_type="meridian.v1.Price" if n % 2 else "meridian.v1.Quote",
+            subjects=[ops.SubjectRef(entity_id=subjects[n % 3])],
+        )
+        lake.answer("ObservationsWanted", _delivering(want))
+        await lake.receive(observations_wanted=dgm.on_want)
+    for n, subject in enumerate(subjects[:2]):
+        want = ops.ObservationsWantedEvent(
+            want_id=f"WNT-L{n}",
+            dataset="polymarket:live",
+            data_type="meridian.v1.Quote",
+            subjects=[ops.SubjectRef(entity_id=subject)],
+            standing=True,
+        )
+        lake.answer("ObservationsWanted", _delivering(want))
+        await lake.receive(observations_wanted=dgm.on_want)
+    return dgm
+
+
+def main(argv: list[str]) -> int:
+    page = argv[0] if argv else "connection"
+    paths = {"connection": "/", "datasets": "/datasets", "datasets-search": "/datasets"}
+    if page not in paths:
+        print(f"no page {page!r}: connection, datasets or datasets-search", file=sys.stderr)
+        return 2
+    hold(asyncio.run(_worked()))
+    query = {"q": SEARCHED} if page == "datasets-search" else {}
+    answered = PageClient(pages).get(paths[page], "admin", **query)
+    sys.stdout.write(answered.text)
+    return 0 if answered.status == 200 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
