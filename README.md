@@ -50,8 +50,10 @@ One dataset, declared from code in its catalogue (`declaration.py`):
 - **Money per token, in Polymarket's USDC.** A price is what one token costs,
   never a probability: the implied probability is the price over the
   payout, a reader's computation. It is named in Polymarket's own USDC
-  instrument -- resolved once by its code at `polymarket`, offered as cash --
-  and never in dollars: a stablecoin is a token, never its currency. Each
+  instrument -- resolved once by its code at `polymarket`, offered as cash,
+  a deployment-side record minted where the deployment holds none (the
+  platform's master holds no USDC instrument today), as Coinbase's plugin
+  does for a quote currency -- and never in dollars: a stablecoin is a token, never its currency. Each
   token's payout is one USDC, and a price outside nothing to the payout is
   left unrecorded and counted.
 - **Wants**, each recorded against or declined per subject with why:
@@ -64,11 +66,13 @@ One dataset, declared from code in its catalogue (`declaration.py`):
   page, which replaces the default; the default claims nothing about
   Polymarket's terms, which are for the deployment admin and whoever uses
   the deployment to settle.
-- **The venue** is resolved in the platform's venue master by Polymarket's
-  code (`symbol` `polymarket`, source `polymarket`: ISO 10383 has no MIC for
-  it). A deployment that does not hold it gets each row with the venue left
-  empty and the code beside it as reported, and the miss reported, asked
-  again the next day.
+- **The venue** is named as Coinbase's and Kraken's plugins name theirs, by
+  its code (`symbol` `polymarket`, source `polymarket`: ISO 10383 has no MIC
+  for it). The platform's venue master holds Polymarket (international)
+  with no identifier yet, so the code does not resolve it today (v18's
+  known finding for a venue with no MIC): each row has the venue left empty
+  and the code beside it as reported, and the miss is reported, asked again
+  the next day, until the master carries the code.
 
 ### What it does not serve
 
