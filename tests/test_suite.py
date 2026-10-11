@@ -1,11 +1,11 @@
-"""The SDK's `dgm` suite, run unchanged against this plugin's own conversion.
+"""The SDK's data suite, run unchanged against this plugin's own conversion.
 
 The same file in plugin-kalshi and plugin-polymarket (`make suite-same`
 holds the two copies to each other): the plan's "one suite unchanged between
 the two". Each of the suite's cases (meridian.suites, contract v19) is mapped
 to the plugin's own synthetic exchange for it, named in tests/venue_cases.py,
 the one module that knows which venue this is; the plugin's real client,
-raw records, conversion and dgm run against the SDK's `Recorder`, its typed
+raw records, conversion and data plugin's work run against the SDK's `Recorder`, its typed
 operations recorded rather than sent, and the runner compares what it sent
 with the case. The outcome is tested, never the route.
 
@@ -34,7 +34,7 @@ NOT_PRESENTED = venue.NOT_PRESENTED
 
 
 def _dgm(recorder: Recorder, **mutations: Any) -> tuple[Any, Instruments]:
-    """The plugin's dgm on the recorder, which resolves from an instrument
+    """The plugin's work (Dgm) on the recorder, which resolves from an instrument
     store of the deployment's records."""
     store = Instruments().answering(recorder)
     dgm = venue.Dgm(recorder, venue.market(), venue.ContractMap(),
@@ -104,6 +104,16 @@ def producers(**mutations: Any) -> dict[str, Producer]:
         await recorder.receive(want_withdrawn=dgm.on_withdrawn)
         await dgm.current()  # one pass keeping current: nothing stands now
 
+    async def licences(recorder: Recorder) -> None:
+        # On start (contract v20): a deployment admin has licensed its live
+        # dataset, and another plugin's dataset is no concern of this one's.
+        dgm, _ = _dgm(recorder)
+        recorder.answer("ListDatasets", lambda _: ops.ListDatasetsResult(licences=[
+            ops.DatasetLicence(dataset=dgm.dataset("live")),
+            ops.DatasetLicence(dataset="another-1:live"),
+        ]))  # fmt: skip
+        assert await dgm.read_licences() == frozenset({dgm.dataset("live")})
+
     made: dict[str, Producer] = {
         "an-exact-price": live(venue.EXACT, PRICE),
         "a-stablecoin-quote": live(venue.BASE, PRICE),
@@ -115,32 +125,34 @@ def producers(**mutations: Any) -> dict[str, Producer]:
         "a-standing-want-withdrawn": withdrawn,
         "a-quote-recorded": live(venue.BASE, QUOTE),
         "a-one-sided-quote": live(venue.ONE_SIDED, QUOTE),
+        "reads-its-datasets-licences": licences,
     }
     return {name: made[name] for name in made if name not in NOT_PRESENTED}
 
 
 def test_every_case_is_mapped_or_said_not_presented_with_why() -> None:
-    assert set(names("dgm")) == set(producers()) | set(NOT_PRESENTED)
+    assert set(names("data")) == set(producers()) | set(NOT_PRESENTED)
     assert not set(producers()) & set(NOT_PRESENTED)
     assert all(why.strip() for why in NOT_PRESENTED.values())
 
 
 def test_only_a_case_about_a_kind_never_published_is_not_presented() -> None:
-    about = {case.name: case.about for case in suite("dgm").cases}
+    about = {case.name: case.about or case.about_field for case in suite("data").cases}
     assert all(about[name] for name in NOT_PRESENTED), "a required case is never skipped"
+    assert "reads-its-datasets-licences" not in NOT_PRESENTED
 
 
 def test_every_case_the_venue_presents_passes_unchanged() -> None:
-    report = run("dgm", producers(), not_presented=NOT_PRESENTED, instance_id=venue.VENUE)
+    report = run("data", producers(), not_presented=NOT_PRESENTED, instance_id=venue.VENUE)
     assert report.passed, report.failures
-    assert len(report.passed_cases) == len(list(names("dgm"))) - len(NOT_PRESENTED)
+    assert len(report.passed_cases) == len(list(names("data"))) - len(NOT_PRESENTED)
 
 
 def test_a_price_read_through_a_float_fails_the_suite() -> None:
     def through_float(self: Any, mapped: Any, kind: str, amount: Any, seen: Any) -> Any:
         return type(self).price(self, mapped, kind, Decimal(float(amount)), seen)
 
-    report = run("dgm", producers(price=through_float), not_presented=NOT_PRESENTED,
+    report = run("data", producers(price=through_float), not_presented=NOT_PRESENTED,
                  instance_id=venue.VENUE)  # fmt: skip
     assert "an-exact-price" in report.failures
 
@@ -151,7 +163,7 @@ def test_a_quote_dropping_its_sizes_fails_the_suite() -> None:
 
         return type(self).quote(self, mapped, replace(top, bid_size=None, ask_size=None))
 
-    report = run("dgm", producers(quote=sizeless), not_presented=NOT_PRESENTED,
+    report = run("data", producers(quote=sizeless), not_presented=NOT_PRESENTED,
                  instance_id=venue.VENUE)  # fmt: skip
     assert "a-quote-recorded" in report.failures
 
@@ -164,6 +176,6 @@ def test_a_token_price_as_its_currency_fails_the_suite() -> None:
     def as_fiat(self: Any, amount: Any, mapped: Any) -> Any:
         return Money(amount, "USD")
 
-    report = run("dgm", producers(_money=as_fiat), not_presented=NOT_PRESENTED,
+    report = run("data", producers(_money=as_fiat), not_presented=NOT_PRESENTED,
                  instance_id=venue.VENUE)  # fmt: skip
     assert "a-stablecoin-quote" in report.failures

@@ -60,7 +60,7 @@ SAME := src/$(PLUGIN)/market.py src/$(PLUGIN)/dgm.py src/$(PLUGIN)/contracts.py 
 help:
 	@echo "  make ci-local       every gate: lint, tests, plugin check, the image, e2e, and the pair held the same"
 	@echo "  make ci-remote      what ci.yaml runs: lint and tests"
-	@echo "  make test           the tests, in a container: the SDK's dgm suite among them"
+	@echo "  make test           the tests, in a container: the SDK's data suite among them"
 	@echo "  make lint           ruff and mypy, strict"
 	@echo "  make check          what check.yaml runs: meridian plugin check --verified --run-tests"
 	@echo "  make image          build the plugin's image, as upload would, and check it"
@@ -133,7 +133,7 @@ image:
 		|| { echo "image FAILED: /plugin holds files; only the installed package belongs" >&2; exit 1; }
 	@echo "image OK: $(IMAGE) on $(BASE), $$(docker image inspect -f '{{.Size}}' $(IMAGE) | awk '{printf "%.0f MB", $$1/1e6}')"
 
-# The plugin, in synthetic mode, on the plugin harness published with the
+# The plugin, with sample data, on the plugin harness published with the
 # runtime it pins, beside the e2e's reader: e2e/run.py says each step. Its own
 # compose project and no published port; nothing outlives it.
 e2e: image
@@ -177,10 +177,10 @@ e2e-run:
 preview:
 	@$(DOCKER) build $(SDK_CONTEXT) -f Dockerfile.check --target test -t $(CHECK) . >/dev/null 2>&1
 	@mkdir -p preview
-	@for page in connection datasets datasets-search; do \
+	@for page in connection datasets datasets-empty; do \
 		docker run --rm $(CHECK) python -m $(PLUGIN).preview $$page >preview/$$page.html || exit 1; \
 	done
-	@echo "preview: preview/connection.html, preview/datasets.html, preview/datasets-search.html"
+	@echo "preview: preview/connection.html, preview/datasets.html, preview/datasets-empty.html"
 
 # The pair passes one suite unchanged (plans/the-lake-prices-the-book, row 6):
 # the files it shares are held byte for byte to the sibling's, the package's

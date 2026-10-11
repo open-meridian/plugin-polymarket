@@ -1,7 +1,7 @@
 """Polymarket's side of the shared tests: this plugin's synthetic exchanges,
-named for what each of the dgm suite's cases asks a source to present.
+named for what each of the data suite's cases asks a source to present.
 
-tests/test_suite.py, the same file in plugin-kalshi, runs the SDK's `dgm`
+tests/test_suite.py, the same file in plugin-kalshi, runs the SDK's data
 suite unchanged against each plugin's own conversion; this module is the one
 place it learns which venue it is holding. Each answer comes through the
 plugin's real client, raw records and reading (synthetic.py's transport over
@@ -69,6 +69,9 @@ NOT_PRESENTED = {
     "a-condition-not-converted": "its one dataset publishes no trades",
     "a-trade-withdrawn": "its one dataset publishes no trades",
     "a-standing-want-streamed": "its one dataset publishes no trades to stream",
+    "the-takers-side-stated": "its one dataset publishes no trades",
+    "a-restarts-gap-backfilled": "its one dataset publishes no trades, so a restart leaves no gap "
+    "of trades to read back",
 }
 
 

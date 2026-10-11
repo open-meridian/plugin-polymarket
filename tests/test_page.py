@@ -4,8 +4,11 @@ The same file in plugin-kalshi and plugin-polymarket (`make
 suite-same`). Asked in-process as the sidecar would ask them
 (`meridian.testing`), after the plugin has answered wants on its synthetic
 exchange: each page is served under Manage alone, shows no price, bid,
-offer or size, fits its rows on one line each, and its tool answers what the
-page shows.
+offer or size, fits its rows on one line each, holds the data role's
+sections in the role's order, and its tool answers what the page shows
+under the role's names; the wants, which grow, carry the kit's search and
+pager; Datasets says whether a deployment admin licensed its dataset
+(contract v20); and the role's figures come in the role's order.
 """
 
 from __future__ import annotations
@@ -71,6 +74,18 @@ def test_every_table_is_one_line_rows(worked: tuple[Any, Lake]) -> None:
         assert tables and all('class="one-line"' in t for t in tables), (path, tables)
 
 
+def _sections(text: str) -> list[str]:
+    return re.findall(r"<h2>([^<]*)</h2>", text)
+
+
+def test_each_page_holds_the_roles_sections_in_its_order(worked: tuple[Any, Lake]) -> None:
+    client = PageClient(venue.page.pages)
+    assert _sections(client.get("/", "admin").text) == ["Key", "Limits and use", "Stream"]
+    assert _sections(client.get("/datasets", "admin").text) == [
+        "Served", "Wants", "Subjects", venue.page.TITLE,
+    ]  # fmt: skip
+
+
 def test_the_tools_answer_what_the_pages_show(worked: tuple[Any, Lake]) -> None:
     dgm, _ = worked
     client = PageClient(venue.page.pages)
@@ -78,19 +93,24 @@ def test_the_tools_answer_what_the_pages_show(worked: tuple[Any, Lake]) -> None:
     connection = client.call_tool("read_connection", level="admin")
     assert connection.outcome == "unchanged", connection.json
     data = connection.data
-    assert (data["venue"], data["mode"], data["venue_id"]) == (
-        dgm.market.name,
-        "synthetic",
-        dgm.venue.venue_id,
-    )
-    assert data["calls"] > 0 and data["healthy"] is True
-    page = client.get("/", "admin").text
-    assert dgm.venue.venue_id in page and data["allowed"] in page.replace("&#39;", "'")
+    # The role's common fields, under the role's names.
+    assert (data["mode"], data["credentials"], data["entitled_at_vendor"]) == (
+        "Sample data", [], venue.page.ENTITLED,
+    )  # fmt: skip
+    assert data["calls"] > 0 and data["last_call_at"] and data["sessions"] is None
+    # The venue's, beside them.
+    assert (data["venue"], data["venue_id"], data["healthy"]) == (
+        dgm.market.name, dgm.venue.venue_id, True,
+    )  # fmt: skip
+    page = client.get("/", "admin").text.replace("&#39;", "'")
+    assert "No key needed" in page and "Does not stream" in page
+    assert dgm.venue.venue_id in page and data["allowed"] in page
 
     datasets = client.call_tool("read_datasets", level="admin").data
-    assert [d["dataset"] for d in datasets["datasets"]] == [f"{venue.VENUE}:live"]
-    assert [d["data_types"] for d in datasets["datasets"]] == ["Price, Quote"]
-    assert all(d["day"] == "Etc/UTC, ends 00:00" for d in datasets["datasets"])
+    assert [d["dataset"] for d in datasets["served"]] == [f"{venue.VENUE}:live"]
+    assert [d["data"] for d in datasets["served"]] == ["Price, Quote"]
+    assert all(d["day"] == "Etc/UTC, ends 00:00" for d in datasets["served"])
+    assert datasets["served"][0]["recorded"] > 0 and datasets["served"][0]["last_recorded"]
     assert datasets["standing_wants"] == 1
     assert [(w["want_id"], w["kept_current"]) for w in datasets["wants"]] == [
         ("WNT-2", True),
@@ -100,23 +120,50 @@ def test_the_tools_answer_what_the_pages_show(worked: tuple[Any, Lake]) -> None:
     assert datasets["cash"] == venue.CASH and datasets["cash_instrument"] == dgm.contracts.cash_id
     assert datasets["payouts"] == [f"{venue.PAYOUT} {venue.CASH}"]
     assert datasets["reads_instruments"] is True
-    shown = client.get("/datasets", "admin").text
+    shown = client.get("/datasets", "admin").text.replace("&#39;", "'")
     assert "1 contract mapped for 1 subject the lake asked for" in shown
     assert f"each contract pays {venue.PAYOUT} {venue.CASH}" in shown
     assert dgm.contracts.cash_id in shown and "Kept current" in shown
+    assert datasets["vendor_note"] in shown
 
 
-def test_the_wants_are_searched_by_the_kit_and_by_the_page(worked: tuple[Any, Lake]) -> None:
+def test_datasets_says_whether_a_deployment_admin_licensed_it(worked: tuple[Any, Lake]) -> None:
+    dgm, _ = worked
     client = PageClient(venue.page.pages)
-    every = client.get("/datasets", "admin").text
-    assert '<om-pager search="Search wants">' in every and "WNT-1" in every
-    assert "/.meridian/ui/0.11.0/" in every, "built against the kit with search"
-    text = client.get("/datasets", "admin", q="kept current").text
-    assert "WNT-2" in text and "WNT-1" not in text and "Showing 1 of 2" in text
-    both = client.get("/datasets", "admin", q=f"{venue.VENUE}:").text
-    assert "WNT-1" in both and "WNT-2" in both
-    assert "No want matches" in client.get("/datasets", "admin", q="nothing-like-it").text
+    assert client.call_tool("read_datasets", level="admin").data["served"][0]["licensed"] is False
+    assert "Not licensed yet" in client.get("/datasets", "admin").text
+    dgm.licensed = frozenset({dgm.dataset("live")})
+    assert client.call_tool("read_datasets", level="admin").data["served"][0]["licensed"] is True
+    shown = client.get("/datasets", "admin").text
+    assert "Not licensed yet" not in shown and "Licensed" in shown
+
+
+def test_the_wants_carry_the_kits_search_beside_its_pager(worked: tuple[Any, Lake]) -> None:
+    client = PageClient(venue.page.pages)
+    text = client.get("/datasets", "admin").text
+    assert re.findall(r"<om-pager[^>]*>", text) == ['<om-pager search="Search wants">']
+    wants = text[text.index("<h2>Wants</h2>") : text.index("<h2>Subjects</h2>")]
+    assert '<om-pager search="Search wants"><table class="one-line">' in wants
+    assert "</table></om-pager>" in wants
+    assert "/.meridian/ui/0.12.0/" in text, "built against the kit with the next step"
     assert len(client.call_tool("read_datasets", level="admin").data["wants"]) == 2
+
+
+def test_with_no_wants_datasets_says_the_next_step(lake: Lake) -> None:
+    venue.page.hold(dgm_on(lake))
+    asked = PageClient(venue.page.pages).get("/datasets", "admin").text
+    assert "No wants yet" in asked and "Ask a deployment admin to license them." in asked
+    assert "<om-pager" not in asked
+    admin = PageClient(venue.page.pages, deployment_admin=True).get("/datasets", "admin").text
+    assert 'data-om-opens="data-sources"' in admin
+
+
+def test_the_roles_figures_in_its_order(worked: tuple[Any, Lake]) -> None:
+    figures = venue.page.figures_now()
+    assert [f.label for f in figures] == [
+        "Connection", "Entitled at the vendor", "Stream", "Last recorded",
+    ]  # fmt: skip
+    assert [f.value for f in figures[:3]] == ["Sample data", "1 of 1 datasets", "Does not stream"]
 
 
 def test_a_tool_is_refused_below_manage(worked: tuple[Any, Lake]) -> None:

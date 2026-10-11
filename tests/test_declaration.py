@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from polymarket.declaration import CATALOGUE, DECLARATION, SYNTHETIC
+from polymarket.declaration import CATALOGUE, DECLARATION, SAMPLE_DATA
 
 
 def test_one_live_dataset_of_prices_and_quotes_kept_two_days() -> None:
@@ -28,9 +28,14 @@ def test_one_live_dataset_of_prices_and_quotes_kept_two_days() -> None:
     )
 
 
-def test_no_secret_and_synthetic_a_developers_setting() -> None:
+def test_no_key_needed_and_sample_data_a_developers_setting() -> None:
+    # The data role's settings (spec/plugin-pages-follow-their-role): one
+    # environment and no credential, so sample data alone, labelled as the
+    # SDK's helper labels it.
+    assert isinstance(DECLARATION.settings, tuple)
     [setting] = DECLARATION.settings
-    assert (setting.name, setting.developer, setting.secret) == (SYNTHETIC, True, False)
+    assert (setting.name, setting.developer, setting.secret) == (SAMPLE_DATA, True, False)
+    assert (setting.label, setting.default) == ("Sample data", False)
     assert DECLARATION.storage is not None
 
 

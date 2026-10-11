@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polymarket"
-version = "0.1.0"
-description = "Polymarket's public market data for its outcome tokens in an Open Meridian deployment's lake: a dgm"
+version = "0.2.0"
+description = "Polymarket's public market data for its outcome tokens in an Open Meridian deployment's lake: a data plugin"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 # The SDK and nothing else, pinned exactly: the sidecar this runs beside speaks
@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 # another. The Dockerfile's base is the same version. Polymarket is reached with
 # the standard library's HTTP client, so there is no third-party dependency.
 dependencies = [
-  "open-meridian==0.23.0",
+  "open-meridian==0.24.0",
 ]
 
 [project.optional-dependencies]
@@ -38,13 +38,13 @@ polymarket = ["templates/*.html", "synthetic/*.json"]
 # What this plugin says about itself, which `meridian plugin upload` sends and
 # a deployment admin approves before it runs (W8). Declarations, not grants.
 [tool.meridian]
-# Roles from the deployment's fixed list -- ccm, compliance, custody, dgm, ems,
-# match, oms, operations, portfolio, reporting, servicing, settlement, signal
-# -- and its grants are theirs. `dgm`: it puts Polymarket's prices and quotes
+# Roles from the deployment's fixed list -- compliance, confirmation,
+# connectivity, custody, data, ems, oms, operations, portfolio, reporting,
+# servicing, settlement, signal -- and its grants are theirs. `data`: it puts Polymarket's prices and quotes
 # for its outcome tokens, each a binary event contract, into the lake,
 # converted at the edge, and keeps Polymarket's raw responses in its own
 # storage (W10, contract v19).
-roles = ["dgm"]
+roles = ["data"]
 # Whether it serves a page through its sidecar.
 interface = true
 # Its declaration: its catalogue, the storage it asks for its raw responses

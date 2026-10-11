@@ -2,11 +2,11 @@
 
 A Meridian plugin, in Python on the open-meridian SDK, that puts
 Polymarket's public market data for its outcome tokens -- each a binary event
-contract -- into a deployment's lake, converted at the edge: a `dgm` (W10,
+contract -- into a deployment's lake, converted at the edge: a data plugin (W10,
 contract v19). It runs beside a sidecar in a Meridian deployment and reaches
 nothing else but that sidecar and Polymarket's public reads (no key): what
 it may publish and subscribe to comes from the role `pyproject.toml`
-declares under `[tool.meridian]` (`dgm`), once a deployment admin approves
+declares under `[tool.meridian]` (`data`), once a deployment admin approves
 it.
 
 - `src/polymarket/__main__.py` connects to the sidecar declaring the
@@ -22,7 +22,7 @@ it.
   paying one USDC, its words, its close; a token's own book as its best bid
   and offer with their sizes, and its last trade's price, every figure a
   `Decimal` from Polymarket's text, never through a `float`. `synthetic.py`
-  answers instead of Polymarket in synthetic mode: the synthetic exchanges
+  answers instead of Polymarket with sample data: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
 - **Everything from there to the lake is shared with plugin-kalshi, byte
   for byte**: `market.py`, `dgm.py`, `contracts.py`, `raw.py`, `page.py` and
@@ -33,7 +33,7 @@ it.
   `convert.py`, `venue.py`, `synthetic.py`, `declaration.py`, `__main__.py`,
   `preview.py`, and `tests/venue_cases.py`, the one test module that knows
   which venue this is.
-- **The lake's rules, which the SDK's `dgm` suite holds** (`tests/test_suite.py`
+- **The lake's rules, which the SDK's data suite holds** (`tests/test_suite.py`
   runs it, unchanged from plugin-kalshi's): per subject wanted, never the
   whole venue -- read its record (`resolve_instrument`, W3.6) and name
   Polymarket's token by its identifiers (the token's ID as a `symbol` whose
@@ -56,15 +56,29 @@ it.
   data the plugin never publishes (its `about`: closes, bars, trades, a
   currency's rate, a security's price) is named in `not_presented` with why
   (`tests/venue_cases.py`); every other case is mapped.
-- **A `dgm` shows no market data** (ruled 2026-10-03). Its pages, Connection
-  and Datasets, are under Manage alone and show its connection, its
-  dataset, the contract map, the cash and payout and the wants it heard:
-  never a price, side or size (`tests/test_page.py` holds every page to it).
-  Each page declares the record it renders (`answers=`), so each is a read
-  tool on the deployment's MCP surface, `read_connection` and
-  `read_datasets`, answering what the page shows; keep the two in step. Both
-  fit one screen at 1440x900 and 390x844 (one-line rows, `om-pager` for the
-  wants with the kit's search, 0.11.0).
+- **A data plugin shows no market data** (ruled 2026-10-03). Its pages are
+  the data role's (meridian-design `spec/plugin-pages-follow-their-role.md`):
+  Connection and Datasets, under Manage alone, extending the SDK's role
+  templates (`meridian/roles/data/connection.html`, `datasets.html`) with
+  records extending `meridian.roles.data.ConnectionRead` and `DatasetsRead`.
+  Their sections, rows, labels and "not set up yet" states are the role's
+  and are never renamed, reordered or dropped; the venue's nuance goes only
+  at the template's blocks: the venue master's ID under "Key", and a section
+  under the venue's name with the contract map, the cash and payouts, and
+  how the venue's sides make a contract (`convert.VENDOR_NOTE`). Never a
+  price, side or size (`tests/test_page.py` holds every page to it). Each
+  page declares the record it renders (`answers=`), so each is a read tool
+  on the deployment's MCP surface, `read_connection` and `read_datasets`,
+  answering what the page shows under the role's field names; keep the two
+  in step. Both fit one screen at 1440x900 and 390x844 (one-line rows; the
+  wants searched and paged by the kit's `om-pager`). The Summary's figures
+  are the role's (`page.figures_now`), sent on the heartbeat each minute.
+- **Its licences** (contract v20): `dgm.read_licences` reads whether a
+  deployment admin has licensed its dataset (`list_datasets`), on start and
+  each minute. It records no trades, so it has no restart's gap to read
+  back; the suite's case for it is not presented, with why.
+- **Settings**: the data role's order; with one environment and no key,
+  only `sample_data` (`meridian.sample_data()`), a developer's.
 - **No real response is committed.** `tests/` and
   `src/polymarket/synthetic/` hold synthetic exchanges, shaped exactly as
   Polymarket sends its answers, with invented markets, token IDs and values;

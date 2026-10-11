@@ -323,7 +323,7 @@ async def test_the_cash_not_resolving_is_reported_once_and_nothing_priced(lake: 
 
 async def test_a_record_that_cannot_be_read_names_nothing(lake: Lake) -> None:
     def refused(_: Any) -> Any:
-        raise meridian.NotGranted("ResolveInstrument", "not granted to a dgm")
+        raise meridian.NotGranted("ResolveInstrument", "not granted to a data plugin")
 
     lake.answer("ResolveInstrument", refused)
     dgm = dgm_on(lake)
@@ -342,3 +342,20 @@ async def test_the_contract_map_is_kept_and_read_back(lake: Lake, tmp_path: Path
     assert again.subjects == dgm.contracts.subjects and again.cash_id == dgm.contracts.cash_id
     assert again.contracts[venue.BASE] == dgm.contracts.contracts[venue.BASE]
     assert str(again.contracts[venue.BASE].payout) == venue.PAYOUT
+
+
+async def test_licences_not_answered_leave_it_not_licensed_yet(lake: Lake) -> None:
+    def refused(_: Any) -> Any:
+        raise meridian.NotGranted("platform.lake.query.datasets", "not granted")
+
+    lake.answer("ListDatasets", refused)
+    dgm = dgm_on(lake)
+    assert await dgm.read_licences() == frozenset() and dgm.reads_licences is False
+    assert await dgm.read_licences() == frozenset(), "asked once, then said"
+
+
+async def test_what_it_recorded_is_counted_with_when(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    subject = await lake.held(dgm, venue.BASE)
+    await hear(lake, dgm, wanted(dgm, "WNT-1", [subject]))
+    assert dgm.counts.recorded > 0 and dgm.counts.last_ns == venue.NOW_NS

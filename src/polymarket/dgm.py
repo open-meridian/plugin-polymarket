@@ -1,5 +1,5 @@
-"""The `dgm`: a venue's binary event contracts into the lake, converted at the
-edge.
+"""The data plugin's work (the role `data`, contract v20): a venue's binary
+event contracts into the lake, converted at the edge.
 
 The same module in plugin-kalshi and plugin-polymarket: what differs
 between the two venues is read in each plugin's `convert.py` into the values
@@ -53,6 +53,12 @@ venue's binary event contracts, `beyond_history` for a day or range already
 past (the venue's public reads answer now), `source_silent` where the venue
 states nothing for it. A standing want keeps its subjects current until it
 is withdrawn, at most once a second.
+
+**Its licences** (contract v20, W10.9): it reads its own declared dataset's
+licence from the deployment (`list_datasets`), on start and each minute, so
+its Datasets page says "Licensed" or "Not licensed yet" exactly. It records
+no trades, so a restart leaves no gap of trades to read back (W10.6): the
+live dataset is read again when it is next wanted.
 """
 
 from __future__ import annotations
@@ -143,6 +149,8 @@ class Counts:
     unread: int = 0
     declined: int = 0
     wants: int = 0
+    #: When it last recorded, 0 before it has.
+    last_ns: int = 0
 
 
 @dataclass
@@ -171,6 +179,10 @@ class Dgm:
     reads_instruments: bool = True
     #: Subjects not served, and why, until the contracts are read again.
     unnamed: dict[str, str] = field(default_factory=dict)
+    #: Its datasets a deployment admin has licensed, as rows name them, as
+    #: last read (contract v20); and whether the deployment answers that read.
+    licensed: frozenset[str] = frozenset()
+    reads_licences: bool = True
 
     # ── Names ────────────────────────────────────────────────────────────
 
@@ -187,6 +199,28 @@ class Dgm:
         the venue asked again; standing wants carry over."""
         self.market, self.contracts, self.venue = market, contracts, Venue()
         self.unnamed.clear()
+
+    # ── Licences ─────────────────────────────────────────────────────────
+
+    async def read_licences(self) -> frozenset[str]:
+        """Its own declared dataset's licence (contract v20, W10.9): whether a
+        deployment admin has licensed it, by the name rows give it. A dataset
+        with none is served by its catalogue's default terms until one is
+        set. A runtime from before v20 does not answer, which is said once
+        and leaves it "Not licensed yet"."""
+        if not self.reads_licences:
+            return self.licensed
+        try:
+            answered = await self.plugin.list_datasets()
+        except meridian.NotGranted:
+            log.warning("this data plugin may not read its datasets' licences")
+            self.reads_licences = False
+            return self.licensed
+        mine = {self.dataset(LIVE)}
+        self.licensed = frozenset(
+            licence.dataset for licence in answered.licences if licence.dataset in mine
+        )
+        return self.licensed
 
     # ── Resolving ────────────────────────────────────────────────────────
 
@@ -361,7 +395,7 @@ class Dgm:
                 instrument_id=subject, as_of_ns=self.clock_ns()
             )
         except meridian.NotGranted:
-            # A runtime from before the ruling of 2026-10-10 grants a dgm no
+            # A runtime from before the ruling of 2026-10-10 grants a data plugin no
             # read of what an instrument is (W3.6). Asked once, and said on
             # the Datasets page.
             log.warning("this dgm may not read an instrument's record; nothing is named")
@@ -515,6 +549,7 @@ class Dgm:
         self.counts.recorded += int(getattr(done, "recorded", 0))
         self.counts.restated += int(getattr(done, "restated", 0))
         self.counts.unchanged += int(getattr(done, "unchanged", 0))
+        self.counts.last_ns = self.clock_ns()
 
     async def _asked(self, call: Callable[..., Any], *args: Any) -> Any:
         """One question of the venue, off the loop: what it answered, or None

@@ -1,11 +1,11 @@
-"""Polymarket's public market data as an Open Meridian `dgm`.
+"""Polymarket's public market data as an Open Meridian data plugin.
 
 It connects to the sidecar it is launched beside, declaring its catalogue,
 its storage and its settings (declaration.py) and its pages (page.py), and
 serves them. Then it hears what the lake wants of it, names each subject as
 one of Polymarket's outcome tokens (contracts.py) and records it, and keeps each
 standing want current (dgm.py), until stopped. Everything goes through the
-sidecar; nothing but Polymarket's public reads are called, and in synthetic mode
+sidecar; nothing but Polymarket's public reads are called, and with sample data
 not even that (synthetic.py). Nothing is asked of Polymarket until the lake
 wants something of it, and then only the contracts wanted.
 
@@ -28,9 +28,9 @@ import meridian
 from . import raw
 from .contracts import ContractMap
 from .convert import PolymarketMarket
-from .declaration import DECLARATION, SYNTHETIC
+from .declaration import DECLARATION, SAMPLE_DATA
 from .dgm import Dgm, cancelled
-from .page import TITLE, hold, pages
+from .page import TITLE, figures_now, hold, pages
 from .raw import RawStore, storage_root, tend
 from .synthetic import Recorded, Synthetic
 from .venue import Polymarket
@@ -43,7 +43,7 @@ RECORDED = "recorded"
 
 
 def market(store: RawStore, synthetic: bool) -> PolymarketMarket:
-    """Polymarket itself, or in synthetic mode its answers from files: a
+    """Polymarket itself, or with sample data its answers from files: a
     developer's recorded exchanges where storage holds them, else this
     package's synthetic ones."""
     if not synthetic:
@@ -81,8 +81,8 @@ async def _apply_settings(
 ) -> None:
     async for delivered in plugin.settings():
         values = delivered.values
-        log.info("settings delivered: synthetic %s", values.get(SYNTHETIC))
-        synthetic = values.get(SYNTHETIC) is True
+        log.info("settings delivered: sample data %s", values.get(SAMPLE_DATA))
+        synthetic = values.get(SAMPLE_DATA) is True
         mode = dgm.market.session.mode
         if synthetic != (mode != "live"):
             chosen = market(store, synthetic)
@@ -111,14 +111,19 @@ async def hear_wants(plugin: meridian.Plugin, dgm: Dgm, configured: asyncio.Even
 
 
 async def report_health(plugin: meridian.Plugin, dgm: Dgm) -> None:
-    """Say on the heartbeat whether Polymarket answers, each minute."""
+    """Each minute: its datasets' licences read again (contract v20), and
+    on the heartbeat whether Polymarket answers, with the data role's figures."""
     while True:
+        try:
+            await dgm.read_licences()
+        except meridian.MeridianError as failed:
+            log.warning("licences not read: %s", failed)
         health = dgm.market.session.health
         healthy = health.last_ok_ns >= health.last_failed_ns
         detail = f"{dgm.market.name} answers" if healthy else health.last_error
         try:
-            await plugin.report(healthy=healthy, detail=detail[:200])
-        except meridian.MeridianError as failed:
+            await plugin.report(healthy=healthy, detail=detail[:200], figures=figures_now())
+        except (meridian.MeridianError, ValueError) as failed:
             log.warning("health not reported: %s", failed)
         await asyncio.sleep(60)
 

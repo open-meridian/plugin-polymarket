@@ -1,7 +1,7 @@
 # plugin-polymarket
 
 Polymarket's public market data for its outcome tokens in an Open Meridian
-deployment's lake: a `dgm` plugin. For each outcome token a deployment's
+deployment's lake: a data plugin. For each outcome token a deployment's
 readers ask about -- each a binary event contract -- it records the last
 trade's price and the best bid and offer, per token in USDC, and the best bid
 and offer with their sizes as a quote, every figure exactly as Polymarket
@@ -9,11 +9,11 @@ stated it. No key: Polymarket's market data is public.
 
 It is the second half of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): the two
-pass one `dgm` suite unchanged between them (meridian-design
+pass one data suite unchanged between them (meridian-design
 `plans/the-lake-prices-the-book.md`, row 20).
 
-**Status.** 0.1.0, built on open-meridian 0.23.0 (contract v19) and proven
-against core's v19 runtime and harness (core e149c69), pinned by digest. Not
+**Status.** 0.2.0, built on open-meridian 0.24.0 (contract v20), holding the
+role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
 ## What it does
@@ -72,39 +72,59 @@ One dataset, declared from code in its catalogue (`declaration.py`):
 
 ### What it does not serve
 
-The SDK's `dgm` suite's cases about a kind of data this plugin never
-publishes are marked not presented, with why, as contract v19 allows
-(`tests/venue_cases.py`): daily closes and bars, trades, a currency's rate
-and a security's price. Every other case passes, a price in a stablecoin on
-the token's own instrument among them.
+The SDK's data suite's cases about a kind of data this plugin never
+publishes are marked not presented, with why, as contracts v19 and v20
+allow (`tests/venue_cases.py`): daily closes and bars, trades, a currency's rate
+and a security's price. It records no trades, so a
+restart leaves no gap of trades to read back (`a-restarts-gap-backfilled`,
+contract v20, not presented): its live dataset is read again when it is
+next wanted. Every other case passes, a price in a stablecoin on the token's
+own instrument and `reads-its-datasets-licences` among them: it reads which
+of its datasets a deployment admin has licensed, on start and each minute.
 
 ## Settings
 
 | Setting | What it does |
 |---|---|
-| Synthetic mode (`synthetic`) | A developer's setting, shown only on a development deployment: answer from the synthetic exchanges this plugin carries instead of calling Polymarket, or from a developer's recorded exchanges where its storage holds them (`recorded/`). |
+| Sample data (`sample_data`) | A developer's setting, shown only on a development deployment: answer from the synthetic exchanges this plugin carries instead of calling Polymarket, or from a developer's recorded exchanges where its storage holds them (`recorded/`). |
 | Raw responses' window (`responses_window_days`, `responses_past_window`) | The SDK's, for the plugin's one kind of raw record: how long Polymarket's answers stay in its storage (30 days by default), and whether a day past it is archived, kept or deleted. |
 
 No secret: Polymarket's public market data needs no key.
 
 ## Its pages, under Manage
 
-A `dgm` shows no market data: viewing prices is for the reading roles.
+The data role's two pages (meridian-design
+`spec/plugin-pages-follow-their-role.md`), the same sections, rows, labels
+and "not set up yet" states as every data plugin's, drawn from the SDK's
+role templates (`meridian.roles.data`); Polymarket's nuance only at their
+extension points. A data plugin shows no market data: viewing prices is for
+the reading roles.
 
-- **Connection**: where it answers from (Polymarket, or synthetic mode), the
-  two endpoints (Gamma for a token's market, the CLOB for its book), what
-  the plugin spends of Polymarket's limits (at most 5 requests a second, a
-  429 waited out), its calls, rate limits met and failures, the last error,
-  and the venue master's ID it resolved.
-- **Datasets**: its dataset; the contracts mapped for the subjects the lake
-  asked for, and those not served with why; the cash its prices and payouts
-  are in (Polymarket's USDC, and the deployment's record for it) and what
-  each contract pays; what Polymarket entitles it to (public data, no key);
-  and the wants it heard, standing ones first, each with what it recorded
-  and declined, under the kit's search.
+- **Connection**: "Key" -- the mode (Live, or Sample data), "No key needed",
+  what Polymarket entitles it to (public data: a contract read only for a
+  subject the lake asked for) and, the role's row for a source of one venue,
+  the venue master's ID it resolved; "Limits and use" -- what Polymarket allows
+  and what the plugin spends of it, its calls and the rate-limited ones
+  waited out, the last call and the last error; "Stream" -- "Does not
+  stream": it reads a contract when it is wanted, at most once a second.
+- **Datasets**: "Served" -- its dataset, its data, how its rows arrive, its
+  day, its default terms and whether a deployment admin has licensed it
+  ("Licensed" or "Not licensed yet", read from the deployment from contract
+  v20), what it recorded and declined and when it last recorded; "Wants" --
+  the wants it heard and the standing wants it keeps current, searched and
+  paged by the kit's `om-pager`; "Subjects" -- whether the deployment lets
+  it read an instrument's record; then a section under Polymarket's name: the
+  contracts mapped for the subjects the lake asked for and those not served
+  with why, the cash its prices and payouts are in (Polymarket's own USDC instrument, never the dollar) and what each
+  contract pays, and that each outcome is its own token and contract, paying one USDC if it is the
+  result. Before the lake has asked anything it says the
+  next step: "No wants yet", a deployment admin licensing its dataset on
+  Data sources.
 
-Both fit one screen at 1440x900 and 390x844, rows one line each, the wants
-paged by the kit's `om-pager`.
+Its Summary carries the data role's figures, in the role's order:
+Connection, Entitled at the vendor, Stream ("Does not stream") and Last
+recorded. Both pages fit one screen at 1440x900 and 390x844, rows one line
+each.
 
 ### Offered to agents
 
@@ -126,7 +146,7 @@ units of a UTC day under `responses/`, moved past the window through the SDK.
 
     make e2e
 
-runs the plugin in synthetic mode on core's plugin harness beside the e2e's
+runs the plugin with sample data on core's plugin harness beside the e2e's
 reader (`e2e/reader.py`, holding `custody` to name a custodian's records,
 `reporting` to read prices and `signal` to read quotes): the catalogue
 listed, nothing asked of Polymarket before a want, a custodian's outcome
@@ -147,7 +167,7 @@ to the synthetic values.
 ## Working on it
 
     make ci-local        # every gate: lint, tests, plugin check, the image, e2e, the pair the same
-    make test            # the tests, the SDK's dgm suite among them
+    make test            # the tests, the SDK's data suite among them
     make preview         # preview/: each page on synthetic data, linking the kit
     make install-hooks   # git push runs ci-local first
 

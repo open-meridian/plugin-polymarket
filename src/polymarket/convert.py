@@ -54,6 +54,13 @@ from .venue import BURST, CLOB, GAMMA, NOT_FOUND, RATE_PER_SECOND, Polymarket, V
 
 VENUE = "polymarket"
 NAME = "Polymarket"
+#: What the venue entitles this plugin to: its public market data, no key.
+ENTITLED = "Public market data: a contract is read only for a subject the lake asked for"
+#: What each outcome token is and pays, said on the Datasets page.
+VENDOR_NOTE = (
+    "Each outcome is its own token and contract, paying one USDC if it is the result: "
+    "Polymarket's own USDC instrument, never a dollar."
+)
 #: Polymarket in the venue master: its own code, as a symbol.
 VENUE_IDENTIFIERS: tuple[tuple[str, str, str], ...] = (("symbol", "polymarket", "polymarket"),)
 CASH = Cash("USDC", "token", name="USD Coin at Polymarket")
@@ -190,7 +197,7 @@ def tick(of: Contract, body: Mapping[str, Any], raw_key: str, received_ns: int) 
 
 
 class PolymarketMarket:
-    """Polymarket's market data, as the shared dgm asks for it."""
+    """Polymarket's market data, as the shared data plugin's work asks for it."""
 
     venue = VENUE
     name = NAME

@@ -6,7 +6,7 @@ deployment's instrument the venue's cash resolved to.
 The same module in plugin-kalshi and plugin-polymarket.
 
 **Per subject wanted, never the whole venue.** The lake wants instruments by
-the deployment's ID; the plugin reads each record (W3.6, a dgm's from
+the deployment's ID; the plugin reads each record (W3.6, a data plugin's from
 contract v18 as ruled 2026-10-10), names the venue's contract it is by its
 identifiers, and asks the venue for that one contract. Nothing else is read
 from the venue, and nothing is resolved for a contract no subject is, so no

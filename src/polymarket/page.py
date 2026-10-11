@@ -1,61 +1,65 @@
-"""The plugin's pages, under Manage: its Connection and its Datasets.
+"""The plugin's pages, under Manage: the data role's Connection and Datasets
+(spec/plugin-pages-follow-their-role), built on `meridian.roles.data`.
 
-The same module in plugin-kalshi and plugin-polymarket, the venue's
-names read from convert.py.
+The same module in plugin-kalshi and plugin-polymarket (`make suite-same`),
+the venue's names and words read from convert.py.
 
-A `dgm` shows no market data (ruled 2026-10-03: "The data unit only cares for
-connectivity and data subscriptions and entitlement resolution"): no price,
-bid, offer or size is on either page; viewing prices is for the reading
-roles.
+A data plugin shows no market data (ruled 2026-10-03: "The data unit only
+cares for connectivity and data subscriptions and entitlement resolution"):
+no price, bid, offer or size is on either page; viewing prices is for the
+reading roles. Both pages are the role's, in its order, their sections,
+rows, labels and "not set up yet" states the role template's; the venue's
+nuance is added only at the template's blocks:
 
-- **Connection** (`/`, `read_connection`): where the plugin answers from
-  (the venue, or synthetic mode), how the venue has answered -- its calls,
-  rate limits met, failures and the last error -- what the venue allows and
-  what the plugin spends of it, and the venue master's ID it resolved.
-- **Datasets** (`/datasets`, `read_datasets`): what it serves -- each
-  dataset of its catalogue, its data types, modes, cadence, declared day and
-  default terms -- the contract map (contracts read, those serving the
-  subjects the lake asked for, subjects not served and why, the cash its
-  prices and payouts are in and the record it resolved to, what not
-  resolved), what the venue entitles it to (public market data, no key: a
-  contract read only for a subject asked for), the standing wants it keeps
-  current, and the wants it heard, each with what it recorded and declined.
-  The wants grow, so the kit's search (`om-pager search`, kit 0.11.0)
-  narrows the rows drawn, and `?q=` the rows the page draws without it
-  (matching every word); the tool answers them all.
+- **Connection** (`/`, `read_connection`): "Key" -- the mode (Live, or
+  Sample data from the package's or a developer's recorded responses), "No
+  key needed", what the venue entitles it to; then the venue master's ID it
+  resolved (Venue, the role's row for a source of one venue) -- "Limits and
+  use" -- what the venue allows and what the plugin spends of it, its calls
+  and the rate-limited ones waited out, the last call and the last error --
+  and "Stream": "Does not stream", since it reads each contract when it is
+  wanted, at most once a second.
+- **Datasets** (`/datasets`, `read_datasets`): "Served" -- its one dataset,
+  its data, how its rows arrive, its day, its default terms and whether a
+  deployment admin has licensed it (contract v20), what the venue entitles
+  it to, and what it recorded and declined and when it last recorded --
+  "Wants", each want it heard and each standing want it keeps current,
+  searched and paged by the kit's `om-pager`, since they grow -- "Subjects",
+  whether the deployment lets it read an instrument's record -- then a
+  section under the venue's name: the contract map (contracts read, those
+  serving the subjects the lake asked for, subjects not served and why,
+  what did not resolve), the cash its prices and payouts are in and the
+  record it resolved to, each contract's payout, and how the venue's sides
+  make a contract (Kalshi's YES and NO, Polymarket's outcome tokens in
+  USDC).
 
-Each page declares the typed record it renders (`answers=`), so each is also
-a read tool on the deployment's MCP surface answering the same record
-(requirement 23: a page's tool answers what the page shows). Both fit one
-screen at 1440x900 and 390x844: one-line rows, and the wants paged by the
-kit's `om-pager`.
+Each page declares the record it renders (`answers=`), the role's record
+extended with the venue's fields, so each is also a read tool on the
+deployment's MCP surface answering the same record under the role's names.
+Both fit one screen at 1440x900 and 390x844.
 """
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
 import meridian
+from meridian import Figure
+from meridian.roles import data
 from meridian.v1 import sidecar_pb2
 
-from .convert import NAME
+from .convert import ENTITLED as ENTITLED
+from .convert import NAME, VENDOR_NOTE, VENUE
 from .declaration import CATALOGUE
 from .dgm import PAYOUT_DIFFERS, Dgm
 
 TITLE = NAME
-ENTITLEMENT = (
-    f"Public market data: no key, so nothing to resolve at {NAME}; "
-    "a contract is read only for a subject the lake asked for"
-)
-#: The kit the pages are built against: 0.11.0's search above the pager.
-KIT = "0.11.0"
+#: The kit the pages are built against: 0.12.0's next step (`data-om-opens`).
+KIT = "0.12.0"
 
 pages = meridian.Pages(TITLE, templates=Path(__file__).parent / "templates", kit=KIT)
-#: The longest search the Datasets page reads.
-MOST_QUERY = 100
 
 
 class _Held:
@@ -70,8 +74,17 @@ def hold(dgm: Dgm) -> None:
     HELD.dgm = dgm
 
 
-def _when(at_ns: int) -> datetime | None:
-    return datetime.fromtimestamp(at_ns / 1e9, tz=UTC).replace(microsecond=0) if at_ns else None
+def _when(at_ns: int) -> str:
+    """A time as the role's records carry it: ISO 8601, to the second, UTC."""
+    if not at_ns:
+        return ""
+    return datetime.fromtimestamp(at_ns / 1e9, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _mode(session_mode: str) -> str:
+    """The role's mode: Live, or Sample data for the package's synthetic
+    responses and a developer's recorded ones alike."""
+    return "Live" if session_mode == "live" else "Sample data"
 
 
 # ── Connection ──────────────────────────────────────────────────────────────
@@ -85,55 +98,58 @@ class EndpointRow:
 
 
 @dataclass(frozen=True)
-class Connection:
-    """How the plugin reaches the venue, and how the venue has answered."""
+class Connection(data.ConnectionRead):
+    """The role's Connection, and the venue's: its name, the venue master's
+    ID it resolved, the endpoints, what the venue allows and what the plugin
+    spends of it, and the failed calls."""
 
-    venue: str
-    mode: str
-    healthy: bool
+    venue: str = NAME
+    venue_id: str = ""
+    venue_held: bool = False
+    healthy: bool = False
     endpoints: list[EndpointRow] = field(default_factory=list)
     allowed: str = ""
     spent: str = ""
-    calls: int = 0
-    rate_limited: int = 0
     failures: int = 0
-    last_answer_at: datetime | None = None
-    last_error: str = ""
-    venue_id: str = ""
-    venue_held: bool = False
 
 
 def connection_now() -> Connection:
     dgm = HELD.dgm
     if dgm is None:
-        return Connection(venue=TITLE, mode="starting", healthy=False)
+        return Connection(mode="Live", entitled_at_vendor=ENTITLED)
     session = dgm.market.session
     health = session.health
     healthy = health.last_ok_ns >= health.last_failed_ns and (
         health.last_ok_ns > 0 or health.calls == 0
     )
     return Connection(
+        mode=_mode(session.mode),
+        credentials=[],
+        entitled_at_vendor=ENTITLED,
+        limit=f"{session.limits.allowed}. This plugin: {session.limits.spent}",
+        calls=health.calls,
+        rate_limited=health.rate_limited,
+        last_call_at=_when(max(health.last_ok_ns, health.last_failed_ns)),
+        last_error=health.last_error,
+        # It reads each contract when it is wanted and keeps no stream open.
+        sessions=None,
         venue=dgm.market.name,
-        mode=session.mode,
+        venue_id=dgm.venue.venue_id,
+        venue_held=dgm.venue.asked and not dgm.venue.missing,
         healthy=healthy,
         endpoints=[EndpointRow(e.name, e.address, e.what) for e in session.endpoints],
         allowed=session.limits.allowed,
         spent=session.limits.spent,
-        calls=health.calls,
-        rate_limited=health.rate_limited,
         failures=health.failures,
-        last_answer_at=_when(health.last_ok_ns),
-        last_error=health.last_error,
-        venue_id=dgm.venue.venue_id,
-        venue_held=dgm.venue.asked and not dgm.venue.missing,
     )
 
 
 @pages.page("/", "Connection", levels="admin", answers=Connection, name="read_connection")
 def connection(request: meridian.Request) -> meridian.Response:
-    """How the plugin reaches the venue: the mode, the endpoint, the venue's
-    limits and what the plugin spends of them, its calls, rate limits met and
-    failures, the last error, and the venue master's ID it resolved."""
+    """How the plugin reaches the venue: the mode, no key needed, what the
+    venue entitles it to and the venue master's ID it resolved; the venue's
+    limits and what the plugin spends of them, its calls, the last call and
+    the last error; and that it does not stream."""
     return pages.answer("connection.html", connection_now())
 
 
@@ -141,27 +157,11 @@ def connection(request: meridian.Request) -> meridian.Response:
 
 
 @dataclass(frozen=True)
-class DatasetRow:
-    dataset: str
-    data_types: str
-    modes: str
-    cadence_seconds: int
-    day: str
-    terms: str
+class Want(data.Want):
+    """The role's want, with its ID and whether it is kept current."""
 
-
-@dataclass(frozen=True)
-class WantRow:
-    want_id: str
-    dataset: str
-    asked: str
-    subjects: int
-    recorded: int
-    declined: int
-    standing: bool
-    kept_current: bool
-    heard_at: datetime | None = None
-    state: str = ""
+    want_id: str = ""
+    kept_current: bool = False
 
 
 @dataclass(frozen=True)
@@ -171,11 +171,10 @@ class NotServed:
 
 
 @dataclass(frozen=True)
-class Datasets:
-    """What the plugin serves the lake, and what the lake asked of it."""
+class Datasets(data.DatasetsRead):
+    """The role's Datasets, and the venue's contract map, cash and payouts."""
 
-    datasets: list[DatasetRow] = field(default_factory=list)
-    entitled_at_vendor: str = ENTITLEMENT
+    standing_wants: int = 0
     contracts_read: int = 0
     contracts_mapped: int = 0
     subjects_named: int = 0
@@ -184,16 +183,12 @@ class Datasets:
     cash: str = ""
     cash_instrument: str = ""
     payouts: list[str] = field(default_factory=list)
-    reads_instruments: bool = True
+    vendor_note: str = VENDOR_NOTE
     assets_not_resolved: list[str] = field(default_factory=list)
-    contracts_read_at: datetime | None = None
-    standing_wants: int = 0
-    recorded: int = 0
+    contracts_read_at: str = ""
     restated: int = 0
     unchanged: int = 0
-    declined: int = 0
     not_read: int = 0
-    wants: list[WantRow] = field(default_factory=list)
 
 
 def _terms(licence: meridian.DatasetLicence | None) -> str:
@@ -208,29 +203,53 @@ def _terms(licence: meridian.DatasetLicence | None) -> str:
     return ", ".join(said)
 
 
+def _arrives(mode: object) -> str:
+    if isinstance(mode, int):
+        named = str(sidecar_pb2.ObservationMode.Name(mode))
+        return named.removeprefix("OBSERVATION_MODE_").lower()
+    return str(mode)
+
+
 def datasets_now() -> Datasets:
     dgm = HELD.dgm
-    instance = dgm.plugin.identity.instance_id if dgm else NAME.lower()
-    rows = [
-        DatasetRow(
-            dataset=f"{instance}:{d.key}",
-            data_types=", ".join(t.removeprefix("meridian.v1.") for t in d.data_types),
-            modes=", ".join(_mode(m) for m in d.modes),
-            cadence_seconds=d.cadence,
-            day=f"{d.day_time_zone}, ends {d.day_end_minute // 60:02d}:{d.day_end_minute % 60:02d}",
-            terms=_terms(d.licence_default),
+    instance = dgm.plugin.identity.instance_id if dgm else VENUE
+    served = []
+    for declared in CATALOGUE:
+        name = f"{instance}:{declared.key}"
+        served.append(
+            data.Served(
+                dataset=name,
+                data=", ".join(t.removeprefix("meridian.v1.") for t in declared.data_types),
+                arrives=", ".join(_arrives(m) for m in declared.modes),
+                day=f"{declared.day_time_zone}, ends {declared.day_end_minute // 60:02d}:"
+                f"{declared.day_end_minute % 60:02d}",
+                default_terms=_terms(declared.licence_default),
+                entitled_at_vendor=ENTITLED,
+                recorded=dgm.counts.recorded if dgm else 0,
+                declined=dgm.counts.declined if dgm else 0,
+                last_recorded=_when(dgm.counts.last_ns) if dgm else "",
+                licensed=dgm is not None and name in dgm.licensed,
+            )
         )
-        for d in CATALOGUE
-    ]
     if dgm is None:
-        return Datasets(datasets=rows)
+        return Datasets(served=served)
     standing = set(dgm.standing)
-    wants = [
-        WantRow(w.want_id, w.dataset, w.asked, w.subjects, w.recorded, w.declined, w.standing,
-                w.want_id in standing, _when(w.at_ns), _state(w.want_id in standing, w.standing))
-        for w in dgm.heard
-    ]  # fmt: skip
-    wants.sort(key=lambda w: (not w.kept_current,))
+    wants: dict[str, Want] = {}
+    for heard in dgm.heard:  # newest first: a want heard again is one row, as last heard
+        if heard.want_id in wants:
+            continue
+        kept = heard.want_id in standing
+        wants[heard.want_id] = Want(
+            dataset=heard.dataset,
+            asked=heard.asked,
+            subjects=heard.subjects,
+            recorded=heard.recorded,
+            declined=heard.declined,
+            state=_state(kept, heard.standing),
+            want_id=heard.want_id,
+            kept_current=kept,
+        )
+    kept_first: list[data.Want] = sorted(wants.values(), key=lambda w: w.state != "Kept current")
     reasons: dict[str, int] = {}
     for why in dgm.unnamed.values():
         reasons[why] = reasons.get(why, 0) + 1
@@ -240,7 +259,10 @@ def datasets_now() -> Datasets:
         {f"{m.contract.payout} {cash.code}" for m in mapped if m.contract.payout is not None}
     )
     return Datasets(
-        datasets=rows,
+        served=served,
+        wants=kept_first,
+        reads_instruments=dgm.reads_instruments,
+        standing_wants=len(standing),
         contracts_read=len(dgm.contracts.contracts),
         contracts_mapped=len(mapped),
         subjects_named=len(dgm.contracts.subjects),
@@ -249,16 +271,11 @@ def datasets_now() -> Datasets:
         cash=cash.code,
         cash_instrument=dgm.contracts.cash_id,
         payouts=payouts,
-        reads_instruments=dgm.reads_instruments,
         assets_not_resolved=sorted(dgm.contracts.missing),
         contracts_read_at=_when(dgm.contracts.read_at_ns),
-        standing_wants=len(standing),
-        recorded=dgm.counts.recorded,
         restated=dgm.counts.restated,
         unchanged=dgm.counts.unchanged,
-        declined=dgm.counts.declined,
         not_read=dgm.counts.unread,
-        wants=wants,
     )
 
 
@@ -266,27 +283,38 @@ def _state(kept_current: bool, standing: bool) -> str:
     return "Kept current" if kept_current else "Withdrawn" if standing else "Answered"
 
 
-def matching(query: str, *texts: str) -> bool:
-    """Whether every word of a search is in one of `texts`, case aside."""
-    held = " ".join(texts).lower()
-    return all(word in held for word in query.lower().split())
-
-
-def _mode(mode: object) -> str:
-    if isinstance(mode, int):
-        named = str(sidecar_pb2.ObservationMode.Name(mode))
-        return named.removeprefix("OBSERVATION_MODE_").lower()
-    return str(mode)
-
-
 @pages.page("/datasets", "Datasets", levels="admin", answers=Datasets, name="read_datasets")
 def datasets(request: meridian.Request) -> meridian.Response:
-    """What the plugin serves the lake: each dataset of its catalogue, the
-    contract map and the cash its prices and payouts are in, what the venue
-    entitles it to, the standing wants it keeps current, and the wants it
-    heard with what each recorded and declined."""
-    data = datasets_now()
-    # A browser's search narrows the wants drawn; the tool answers them all.
-    query = request.query.get("q", "").strip()[:MOST_QUERY]
-    shown = [w for w in data.wants if matching(query, w.want_id, w.dataset, w.asked, w.state)]
-    return pages.answer("datasets.html", data, now=time.time(), query=query, shown=shown)
+    """What the plugin serves the lake: its dataset and whether it is
+    licensed, what the venue entitles it to, what it recorded and declined;
+    the wants it heard and the standing wants it keeps current; whether it
+    may read an instrument's record; and the contract map, the cash its
+    prices and payouts are in, and how the venue's sides make a contract."""
+    return pages.answer("datasets.html", datasets_now(), venue=NAME)
+
+
+# ── Figures ─────────────────────────────────────────────────────────────────
+
+
+def figures_now() -> list[Figure]:
+    """The data role's figures on the Summary, in its order: Connection,
+    Entitled at the vendor, Stream ("Does not stream") and Last recorded.
+    The venue states no running rate to measure against, so Rate use is
+    left out."""
+    dgm = HELD.dgm
+    if dgm is None:
+        return data.figures(connection="Answering", stream="Does not stream")
+    said = connection_now()
+    if said.mode == "Sample data":
+        answering: str | Figure = "Sample data"
+    elif said.healthy:
+        answering = "Answering"
+    else:
+        answering = Figure("", "Not answering", state="error", why=said.last_error[:200] or None)
+    last = dgm.counts.last_ns
+    return data.figures(
+        connection=answering,
+        entitled_at_vendor=f"{len(CATALOGUE)} of {len(CATALOGUE)} datasets",
+        stream="Does not stream",
+        last_recorded=datetime.fromtimestamp(last / 1e9, tz=UTC) if last else None,
+    )
