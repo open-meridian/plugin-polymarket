@@ -12,13 +12,9 @@ It is the second half of the lake's second batch, with
 pass one `dgm` suite unchanged between them (meridian-design
 `plans/the-lake-prices-the-book.md`, row 20).
 
-**Status.** 0.1.0, built on open-meridian 0.23.0 (contract v19), committed in
-meridian-python and not yet on PyPI, and proven against core's v19 runtime,
-built locally from core c7b3cbd and not yet released. Until both are, CI's
-`check`, `ci` and `e2e` jobs fail at installing the SDK or building on its
-base image; the same gates pass locally (`make ci-local
-SDK_REPO=<meridian-python at 0.23.0>`). Not released, uploaded or launched
-anywhere.
+**Status.** 0.1.0, built on open-meridian 0.23.0 (contract v19) and proven
+against core's v19 runtime and harness (core e149c69), pinned by digest. Not
+released, uploaded or launched anywhere.
 
 ## What it does
 

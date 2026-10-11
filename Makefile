@@ -19,8 +19,6 @@ IMAGE       ?= $(PLUGIN):local
 # published, being tried -- it is built from there (SDK_REPO): the tests' and
 # the check's containers install it from source, and the plugin's image is
 # built on a base made from it. Otherwise both come from PyPI and ghcr.io.
-# A checkout elsewhere carrying it is named on the command line:
-# `make ci-local SDK_REPO=<path to meridian-python at 0.23.0>`.
 SDK_VERSION := $(shell sed -n 's/.*"open-meridian==\([0-9][0-9.]*\)".*/\1/p' pyproject.toml)
 SDK_REPO    ?= $(if $(shell grep -s '^version = "$(SDK_VERSION)"$$' ../meridian-python/pyproject.toml),../meridian-python,)
 SDK_CONTEXT := $(if $(SDK_REPO),--build-context sdk=$(SDK_REPO),)
@@ -30,17 +28,15 @@ PLUGIN_CHECK := meridian-$(PLUGIN)-plugin-check
 # cannot drift.
 MERIDIAN_VERSION := $(shell sed -n 's/^ *MERIDIAN_VERSION: *\([0-9][0-9.]*\).*/\1/p' .github/workflows/check.yaml)
 
-# The runtime `make e2e` proves the plugin against, and core's plugin harness
-# of the same commit. Contract v19 is core c7b3cbd, not yet released: until
-# it is, both are built locally from that commit, as
-#   git -C ../meridian-core archive c7b3cbd | docker build -t meridian-runtime:c7b3cbd-local -
-#   git -C ../meridian-core archive c7b3cbd | docker build --target harness -t meridian-harness:c7b3cbd-local -
-# and once released they are pinned here by tag and digest, moved together by
-# a deliberate commit, and with the SDK when a contract version changes.
+# The released runtime `make e2e` proves the plugin against, by tag and digest,
+# and core's plugin harness published with it, by the same commit's tag and
+# its digest: core main e149c69, contract v19 (the lake hears trades and
+# quotes). Moved together by a deliberate commit, and with the SDK when a
+# contract version changes.
 # `make e2e RUNTIME_IMAGE=...:latest HARNESS_IMAGE=...:latest` tries a newer
 # core; e2e-latest.yaml does that weekly.
-RUNTIME_IMAGE ?= meridian-runtime:c7b3cbd-local
-HARNESS_IMAGE ?= meridian-harness:c7b3cbd-local
+RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:e149c69@sha256:efc24e4b95ecea75d236fe57379edb1a0834d3bb1fa951e783e44c1d02bae986
+HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:e149c69@sha256:04514be78c9aec051c2b834d361fc78c9ff0e3493f3c98651f383ac769bb4445
 # Its roles as pyproject.toml declares them (a JSON list's items), so the
 # harness launches it as `meridian plugin upload` would; and the e2e's reader
 # (e2e/reader.py) beside it, holding `custody` to name a custodian's records,
