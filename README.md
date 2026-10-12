@@ -12,7 +12,7 @@ It is the second half of the lake's second batch, with
 pass one data suite unchanged between them (meridian-design
 `plans/the-lake-prices-the-book.md`, row 20).
 
-**Status.** 0.2.0, built on open-meridian 0.24.0 (contract v20), holding the
+**Status.** 0.3.0, built on open-meridian 0.25.0 (contract v21), holding the
 role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
