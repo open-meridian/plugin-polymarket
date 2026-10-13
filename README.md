@@ -12,7 +12,7 @@ It is the second half of the lake's second batch, with
 pass one data suite unchanged between them (meridian-design
 `plans/the-lake-prices-the-book.md`, row 20).
 
-**Status.** 0.3.0, built on open-meridian 0.25.0 (contract v21), holding the
+**Status.** 0.4.0, built on open-meridian 0.26.0 (contract v22), holding the
 role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
@@ -78,7 +78,9 @@ allow (`tests/venue_cases.py`): daily closes and bars, trades, a currency's rate
 and a security's price. It records no trades, so a
 restart leaves no gap of trades to read back (`a-restarts-gap-backfilled`,
 contract v20, not presented): its live dataset is read again when it is
-next wanted. Every other case passes, a price in a stablecoin on the token's
+next wanted. Contract v22's two calendar cases are not presented either: it
+reads no settlement calendar, and an event contract settles on its outcome,
+so it never computes a settlement date. Every other case passes, a price in a stablecoin on the token's
 own instrument and `reads-its-datasets-licences` among them: it reads which
 of its datasets a deployment admin has licensed, on start and each minute.
 
