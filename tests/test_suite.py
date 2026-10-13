@@ -10,7 +10,8 @@ operations recorded rather than sent, and the runner compares what it sent
 with the case. The outcome is tested, never the route.
 
 A case about a kind of data the plugin declares it never publishes -- daily
-closes, bars, trades, a currency's rate, a security's price -- is named in
+closes, bars, trades, a currency's rate, a security's price, from contract
+v22 a settlement calendar or date -- is named in
 `not_presented` with why (venue_cases.NOT_PRESENTED), as the suite allows
 from contract v19; every other case is mapped and passes.
 """

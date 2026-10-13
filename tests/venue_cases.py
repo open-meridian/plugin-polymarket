@@ -72,6 +72,10 @@ NOT_PRESENTED = {
     "the-takers-side-stated": "its one dataset publishes no trades",
     "a-restarts-gap-backfilled": "its one dataset publishes no trades, so a restart leaves no gap "
     "of trades to read back",
+    "reads-a-calendar": "it records event contracts' prices and quotes as they stream: it reads "
+    "no settlement calendar",
+    "asks-for-a-settlement-date": "it records prices and quotes as published; an event contract "
+    "settles on its outcome, and it never computes a settlement date",
 }
 
 
