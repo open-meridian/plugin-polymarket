@@ -3,9 +3,9 @@ the lake has someone whose reads it asks this plugin for. It holds `custody`
 only so that it can name the instruments it asks about as a custodian's
 book would, by resolving their identifiers (W3.1): a contract by the
 custodian's own symbol, never resolved by the venue, a record the plugin
-names by reading it (W3.6); `reporting` to read and hear prices; and
-`signal` to read and hear quotes, which `reporting` does not read (the
-plan's Q9).
+names by reading it (W3.6); `reporting` to read and hear prices, and from
+contract v23 an event contract's outcomes; and `signal` to read and hear
+quotes, which `reporting` does not read (the plan's Q9).
 
 The same file in plugin-kalshi and plugin-polymarket. It is not the
 plugin, and is never built into its image: `make e2e` runs it from this file
@@ -16,12 +16,15 @@ runner (`page --instance reader --level read PATH`):
   /resolve?name=N&scheme=S&value=V[&source=SRC]
                                        names a record by an identifier, and
                                        gives every record named so far;
-  /follow?subject=ID...                hears prices and quotes recorded for them;
+  /follow?subject=ID...                hears prices, quotes and outcomes
+                                       recorded for them;
   /heard                               what it heard, each row's dataset, row
-                                       key, kind, amounts and sizes;
+                                       key, kind, amounts and sizes, and each
+                                       outcome's determination and stage;
   /prices?subject=ID&dataset=D[&kind=K]
   /quotes?subject=ID&dataset=D         one read: its rows, and what it left
-                                       unanswered and why.
+                                       unanswered and why;
+  /outcomes?subject=ID                 the outcomes in force (contract v23).
 """
 
 import asyncio
@@ -76,6 +79,17 @@ def quote_json(quote):
     return said
 
 
+def outcome_json(outcome):
+    said = outcome.determination_as_reported
+    return {"row": "outcome", **meta_json(outcome.meta),
+            "determination": ops.OutcomeDetermination.Name(outcome.determination),
+            "stage": ops.OutcomeStage.Name(outcome.stage),
+            "settled_at_ns": outcome.settled_at_ns,
+            "as_reported": f"{said.scheme}={said.code}",
+            "source_times": len(outcome.meta.source_times),
+            **money_json("", outcome.settlement_value)}  # fmt: skip
+
+
 def unanswered_json(answer):
     return [{"subject": u.subject.entity_id, "dataset": u.dataset,
              "reason": ops.UnansweredReason.Name(u.reason)} for u in answer.unanswered]  # fmt: skip
@@ -104,6 +118,9 @@ class Reader:
     async def on_quote(self, heard):
         self.heard.append(quote_json(heard.message.quote))
 
+    async def on_outcome(self, heard):
+        self.heard.append(outcome_json(heard.message.outcome))
+
     async def answer(self, path, query):
         one = lambda name: query.get(name, [""])[0]  # noqa: E731
         if path == "/resolve":
@@ -112,10 +129,14 @@ class Reader:
             if self.following is None:
                 self.following = asyncio.ensure_future(self.plugin.receive(
                     prices_recorded=self.on_price, quotes_recorded=self.on_quote,
-                    subjects=query["subject"]))  # fmt: skip
+                    outcomes_recorded=self.on_outcome, subjects=query["subject"]))  # fmt: skip
             return {"following": query["subject"]}
         if path == "/heard":
             return {"heard": self.heard}
+        if path == "/outcomes":
+            answer = await self.plugin.list_outcomes(
+                subjects=[ops.SubjectRef(entity_id=s) for s in query["subject"]])
+            return {"outcomes": [outcome_json(o) for o in answer.outcomes]}
         asked = {"subjects": [ops.SubjectRef(entity_id=s) for s in query["subject"]]}
         if one("dataset"):
             asked["sources"] = SourceChoice(named=[one("dataset")])

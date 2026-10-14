@@ -359,3 +359,101 @@ async def test_what_it_recorded_is_counted_with_when(lake: Lake) -> None:
     subject = await lake.held(dgm, venue.BASE)
     await hear(lake, dgm, wanted(dgm, "WNT-1", [subject]))
     assert dgm.counts.recorded > 0 and dgm.counts.last_ns == venue.NOW_NS
+
+
+# ── Outcomes (contract v23; the lake plan's "vL1c") ─────────────────────────
+
+
+async def _resolved(lake: Lake, dgm: Any, code: str) -> str:
+    """A subject named as one of the venue's contracts, its outcome recorded."""
+    subject = await lake.held(dgm, code)
+    await dgm.record_live([subject], data_type=PRICE)
+    return subject
+
+
+def _outcome_name(row: Any) -> tuple[str, str]:
+    return (ops.OutcomeDetermination.Name(row.determination), ops.OutcomeStage.Name(row.stage))
+
+
+async def test_a_resolved_contract_records_its_outcome_from_its_own_side(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    subject = await _resolved(lake, dgm, venue.RESOLVED)
+    [row] = lake.rows("RecordOutcomes")
+    assert _outcome_name(row) == ("OUTCOME_DETERMINATION_PAYS", venue.RESOLVED_STAGE)
+    assert as_decimal(row.settlement_value.amount) == Decimal(venue.PAYOUT)
+    assert (row.determination_as_reported.scheme, row.determination_as_reported.code) == venue.WORD
+    assert row.meta.row_key == f"{venue.RESOLVED}:outcome"
+    assert row.meta.source.dataset == f"{venue.VENUE}:outcomes"
+    assert row.meta.subjects[0].entity_id == subject and not row.meta.business_date
+    assert row.meta.raw.key.startswith("responses/") and row.meta.valid_from_ns > 0
+    assert dgm.outcome_counts.recorded == 1 and dgm.counts.recorded >= 0
+
+
+async def test_a_contract_that_pays_nothing_settles_at_nothing(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    await _resolved(lake, dgm, venue.RESOLVED_LOSER)
+    [row] = lake.rows("RecordOutcomes")
+    assert ops.OutcomeDetermination.Name(row.determination) == "OUTCOME_DETERMINATION_PAYS_NOTHING"
+    assert as_decimal(row.settlement_value.amount) == 0
+
+
+async def test_a_partial_payout_settles_at_its_part(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    await _resolved(lake, dgm, venue.PARTIAL)
+    [row] = lake.rows("RecordOutcomes")
+    assert ops.OutcomeDetermination.Name(row.determination) == "OUTCOME_DETERMINATION_PAYS_PART"
+    assert str(as_decimal(row.settlement_value.amount)) == venue.PARTIAL_VALUE
+
+
+async def test_an_outcome_stated_again_unchanged_sends_nothing_even_after_a_restart(
+    lake: Lake, tmp_path: Path
+) -> None:
+    dgm = dgm_on(lake)
+    dgm.contracts = venue.ContractMap(tmp_path / "contracts-synthetic.json")
+    subject = await _resolved(lake, dgm, venue.RESOLVED)
+    await dgm.record_live([subject], data_type=PRICE)
+    assert await dgm.watch_outcomes() == 0
+    again = dgm_on(lake)
+    again.contracts = venue.ContractMap(tmp_path / "contracts-synthetic.json")
+    assert again.contracts.load()
+    assert await again.watch_outcomes() == 0 and await again.reread() is again.contracts
+    assert len(lake.rows("RecordOutcomes")) == 1
+
+
+async def test_each_later_stage_is_a_new_version_valid_from_the_determination(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    await _resolved(lake, dgm, venue.RESOLVED)
+    [first] = lake.rows("RecordOutcomes")
+    for directory, stage, settled_at_ns in venue.LATER:
+        dgm.market = venue.market(directory=directory)
+        assert await dgm.watch_outcomes() == 1
+        row = lake.rows("RecordOutcomes")[-1]
+        assert ops.OutcomeStage.Name(row.stage) == stage and row.settled_at_ns == settled_at_ns
+        assert row.meta.row_key == first.meta.row_key
+        assert row.meta.valid_from_ns == first.meta.valid_from_ns
+        assert row.determination == first.determination
+    assert lake.versions[("outcome", first.meta.row_key)][0] == 1 + len(venue.LATER)
+
+
+async def test_a_contract_past_its_close_not_yet_determined_records_nothing(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    await _resolved(lake, dgm, venue.PENDING)
+    asked = dgm.market.session.health.calls
+    assert await dgm.watch_outcomes() == 0
+    assert dgm.market.session.health.calls == asked + 1, "read again, past its close"
+    assert not lake.on("RecordOutcomes")
+
+
+async def test_a_contract_still_trading_or_final_is_not_read_again(lake: Lake) -> None:
+    dgm = dgm_on(lake)
+    await _resolved(lake, dgm, venue.BASE)
+    asked = dgm.market.session.health.calls
+    assert await dgm.watch_outcomes() == 0
+    assert dgm.market.session.health.calls == asked, "trading before its close: not read again"
+    await _resolved(lake, dgm, venue.RESOLVED)
+    for directory, _, _ in venue.LATER:
+        dgm.market = venue.market(directory=directory)
+        await dgm.watch_outcomes()
+    asked = dgm.market.session.health.calls
+    assert await dgm.watch_outcomes() == 0
+    assert dgm.market.session.health.calls == asked, "final: not read again"

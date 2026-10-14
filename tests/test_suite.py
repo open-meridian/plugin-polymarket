@@ -13,13 +13,19 @@ A case about a kind of data the plugin declares it never publishes -- daily
 closes, bars, trades, a currency's rate, a security's price, from contract
 v22 a settlement calendar or date -- is named in
 `not_presented` with why (venue_cases.NOT_PRESENTED), as the suite allows
-from contract v19; every other case is mapped and passes.
+from contract v19; every other case is mapped and passes. From contract v23
+the outcome cases are each mapped to the venue's own exchange for it
+(venue_cases.DETERMINED, DISPUTED and PARTIAL), an outcome recorded at the
+stage the venue states; a venue that never states a dispute names
+restates-a-disputed-outcome (`about: disputed outcomes`) not presented, with
+why.
 """
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from meridian.plugin.v1 import operations_pb2 as ops
@@ -105,6 +111,24 @@ def producers(**mutations: Any) -> dict[str, Producer]:
         await recorder.receive(want_withdrawn=dgm.on_withdrawn)
         await dgm.current()  # one pass keeping current: nothing stands now
 
+    def outcome(code: str | None, later: tuple[Path, ...] = ()) -> Producer | None:
+        # Contract v23: a contract the venue has determined, named for a
+        # subject, its outcome recorded; then each later answer of the venue
+        # for it, read again as a contract past its close is.
+        if code is None:
+            return None
+
+        async def produce(recorder: Recorder) -> None:
+            dgm, store = _dgm(recorder, **mutations)
+            subject = await held(store, dgm, code)
+            await dgm.name([subject])
+            await dgm.record_outcomes([dgm.contracts.serving(subject)])
+            for directory in later:
+                dgm.market = venue.market(directory=directory)
+                await dgm.watch_outcomes()
+
+        return produce
+
     async def licences(recorder: Recorder) -> None:
         # On start (contract v20): a deployment admin has licensed its live
         # dataset, and another plugin's dataset is no concern of this one's.
@@ -128,6 +152,12 @@ def producers(**mutations: Any) -> dict[str, Producer]:
         "a-one-sided-quote": live(venue.ONE_SIDED, QUOTE),
         "reads-its-datasets-licences": licences,
     }
+    outcomes = {
+        "records-an-outcome": outcome(venue.DETERMINED),
+        "restates-a-disputed-outcome": outcome(*venue.DISPUTED) if venue.DISPUTED else None,
+        "records-a-partial-payout": outcome(venue.PARTIAL),
+    }
+    made.update({name: each for name, each in outcomes.items() if each is not None})
     return {name: made[name] for name in made if name not in NOT_PRESENTED}
 
 
@@ -180,3 +210,12 @@ def test_a_token_price_as_its_currency_fails_the_suite() -> None:
     report = run("data", producers(_money=as_fiat), not_presented=NOT_PRESENTED,
                  instance_id=venue.VENUE)  # fmt: skip
     assert "a-stablecoin-quote" in report.failures
+
+
+def test_an_outcome_read_as_its_full_payout_fails_the_suite() -> None:
+    def in_full(self: Any, value: Any, contract: Any) -> str:
+        return "pays"
+
+    report = run("data", producers(_determination=in_full), not_presented=NOT_PRESENTED,
+                 instance_id=venue.VENUE)  # fmt: skip
+    assert "records-a-partial-payout" in report.failures

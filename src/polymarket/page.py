@@ -19,10 +19,11 @@ nuance is added only at the template's blocks:
   and the rate-limited ones waited out, the last call and the last error --
   and "Stream": "Does not stream", since it reads each contract when it is
   wanted, at most once a second.
-- **Datasets** (`/datasets`, `read_datasets`): "Served" -- its one dataset,
-  its data, how its rows arrive, its day, its default terms and whether a
-  deployment admin has licensed it (contract v20), what the venue entitles
-  it to, and what it recorded and declined and when it last recorded --
+- **Datasets** (`/datasets`, `read_datasets`): "Served" -- each dataset
+  (`live`, and from contract v23 `outcomes`), its data, how its rows arrive,
+  its day, its default terms and whether a deployment admin has licensed it
+  (contract v20), what the venue entitles it to, and what it recorded and
+  declined and when it last recorded, each dataset's own --
   "Wants", each want it heard and each standing want it keeps current,
   searched and paged by the kit's `om-pager`, since they grow -- "Subjects",
   whether the deployment lets it read an instrument's record -- then a
@@ -53,7 +54,7 @@ from meridian.v1 import sidecar_pb2
 from .convert import ENTITLED as ENTITLED
 from .convert import NAME, VENDOR_NOTE, VENUE
 from .declaration import CATALOGUE
-from .dgm import PAYOUT_DIFFERS, Dgm
+from .dgm import OUTCOMES, PAYOUT_DIFFERS, Dgm
 
 TITLE = NAME
 #: The kit the pages are built against: 0.12.0's next step (`data-om-opens`).
@@ -216,6 +217,7 @@ def datasets_now() -> Datasets:
     served = []
     for declared in CATALOGUE:
         name = f"{instance}:{declared.key}"
+        counts = (dgm.outcome_counts if declared.key == OUTCOMES else dgm.counts) if dgm else None
         served.append(
             data.Served(
                 dataset=name,
@@ -225,9 +227,9 @@ def datasets_now() -> Datasets:
                 f"{declared.day_end_minute % 60:02d}",
                 default_terms=_terms(declared.licence_default),
                 entitled_at_vendor=ENTITLED,
-                recorded=dgm.counts.recorded if dgm else 0,
-                declined=dgm.counts.declined if dgm else 0,
-                last_recorded=_when(dgm.counts.last_ns) if dgm else "",
+                recorded=counts.recorded if counts else 0,
+                declined=counts.declined if counts else 0,
+                last_recorded=_when(counts.last_ns) if counts else "",
                 licensed=dgm is not None and name in dgm.licensed,
             )
         )
@@ -285,7 +287,7 @@ def _state(kept_current: bool, standing: bool) -> str:
 
 @pages.page("/datasets", "Datasets", levels="admin", answers=Datasets, name="read_datasets")
 def datasets(request: meridian.Request) -> meridian.Response:
-    """What the plugin serves the lake: its dataset and whether it is
+    """What the plugin serves the lake: its datasets and whether each is
     licensed, what the venue entitles it to, what it recorded and declined;
     the wants it heard and the standing wants it keeps current; whether it
     may read an instrument's record; and the contract map, the cash its
@@ -311,7 +313,7 @@ def figures_now() -> list[Figure]:
         answering = "Answering"
     else:
         answering = Figure("", "Not answering", state="error", why=said.last_error[:200] or None)
-    last = dgm.counts.last_ns
+    last = max(dgm.counts.last_ns, dgm.outcome_counts.last_ns)
     return data.figures(
         connection=answering,
         entitled_at_vendor=f"{len(CATALOGUE)} of {len(CATALOGUE)} datasets",

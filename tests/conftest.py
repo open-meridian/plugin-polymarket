@@ -122,10 +122,11 @@ class Lake(Recorder):
 
     def __init__(self, instance_id: str = venue.VENUE) -> None:
         super().__init__(instance_id)
-        self.versions: dict[tuple[str, str], tuple[int, tuple[Decimal | None, ...]]] = {}
+        self.versions: dict[tuple[str, str], tuple[int, tuple[Any, ...]]] = {}
         self.instruments = Instruments().answering(self)
         self.answer("RecordPrices", self._prices)
         self.answer("RecordQuotes", self._quotes)
+        self.answer("RecordOutcomes", self._outcomes)
 
     def _prices(self, params: Any) -> Any:
         recorded, restated, unchanged = self._record(params.prices, "price")
@@ -135,11 +136,18 @@ class Lake(Recorder):
         recorded, restated, unchanged = self._record(params.quotes, "quote")
         return ops.RecordQuotesResult(recorded=recorded, restated=restated, unchanged=unchanged)
 
+    def _outcomes(self, params: Any) -> Any:
+        recorded, restated, unchanged = self._record(params.outcomes, "outcome")
+        return ops.RecordOutcomesResult(recorded=recorded, restated=restated, unchanged=unchanged)
+
     def on(self, row: str) -> list[Any]:
         return list(super().on(row))
 
     @staticmethod
-    def _values(row: Any, kind: str) -> tuple[Decimal | None, ...]:
+    def _values(row: Any, kind: str) -> tuple[Any, ...]:
+        if kind == "outcome":
+            return (row.determination, row.stage, as_decimal(row.settlement_value.amount),
+                    row.settled_at_ns, row.determination_as_reported.code)  # fmt: skip
         if kind == "price":
             return (as_decimal(row.price.amount),)
         return tuple(
@@ -166,9 +174,9 @@ class Lake(Recorder):
         return recorded, restated, unchanged
 
     def rows(self, row: str = "RecordPrices") -> list[Any]:
-        sent = self.on(row)
-        return [r for params in sent for r in (params.prices if row == "RecordPrices"
-                                               else params.quotes)]  # fmt: skip
+        field = {"RecordPrices": "prices", "RecordQuotes": "quotes",
+                 "RecordOutcomes": "outcomes"}[row]  # fmt: skip
+        return [r for params in self.on(row) for r in getattr(params, field)]
 
     async def held(self, dgm: Any, code: str, **kw: Any) -> str:
         return await held(self.instruments, dgm, code, **kw)

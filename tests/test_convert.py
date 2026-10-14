@@ -94,3 +94,53 @@ def test_the_synthetic_exchange_reads_as_the_cases_say() -> None:
     assert market.contract("123") is None
     assert market.cash.code == "USDC" and not market.cash.currency_code
     assert market.venue_identifiers == (("symbol", "polymarket", "polymarket"),)
+
+
+# ── Its outcome (contract v23) ──────────────────────────────────────────────
+
+
+def _resolved(status: str = "resolved", closed: bool = True, prices: str = '["1", "0"]') -> Any:
+    return {**GAMMA, "umaResolutionStatus": status, "closed": closed, "outcomePrices": prices}
+
+
+def test_a_resolved_market_settles_each_token_from_its_own_side() -> None:
+    yes, no = (convert.resolution(t, _resolved()) for t in ("111", "222"))
+    assert yes is not None and no is not None
+    assert (yes.stage, yes.value, yes.scheme, yes.word, yes.text) == (
+        "final",
+        Decimal("1"),
+        "polymarket:outcomePrices",
+        "1",
+        "Yes 1, No 0",
+    )
+    assert (no.stage, no.value, no.word) == ("final", Decimal("0"), "0")
+    assert yes.determined_at_ns == 0 and yes.settled_at_ns == 0, "Polymarket states neither"
+
+
+def test_an_unknown_50_50_resolution_settles_each_token_at_half() -> None:
+    half = convert.resolution("222", _resolved(prices='["0.5", "0.5"]'))
+    assert half is not None and half.value == Decimal("0.5")
+
+
+def test_a_proposal_or_a_dispute_states_no_answer_so_none() -> None:
+    # Gamma's outcomePrices stay the book's while a proposal stands: 0.5 and
+    # 0.5 there is no resolution at half.
+    for status in ("proposed", "disputed"):
+        assert convert.resolution("111", _resolved(status, False, '["0.5", "0.5"]')) is None
+    assert convert.resolution("111", _resolved("resolved", False)) is None, "not closed yet"
+    assert convert.resolution("111", GAMMA) is None
+
+
+def test_prices_that_state_no_settlement_are_kept_as_sent() -> None:
+    said = convert.resolution("111", _resolved(prices='["0.9995", "0.0005"]'))
+    assert said is not None and said.value is None
+    assert said.unread[0].field == "market.outcomePrices"
+
+
+def test_a_token_is_read_with_its_outcome_and_when_its_answer_arrived() -> None:
+    market = venue.market()
+    resolved = market.contract(venue.RESOLVED)
+    assert resolved is not None and resolved.resolution is not None
+    assert resolved.read_at_ns == venue.NOW_NS and not resolved.tradable
+    active = market.contract(venue.BASE)
+    assert active is not None and active.resolution is None

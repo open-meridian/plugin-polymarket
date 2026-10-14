@@ -13,6 +13,7 @@ pager; Datasets says whether a deployment admin licensed its dataset
 
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any
 
@@ -107,10 +108,16 @@ def test_the_tools_answer_what_the_pages_show(worked: tuple[Any, Lake]) -> None:
     assert dgm.venue.venue_id in page and data["allowed"] in page
 
     datasets = client.call_tool("read_datasets", level="admin").data
-    assert [d["dataset"] for d in datasets["served"]] == [f"{venue.VENUE}:live"]
-    assert [d["data"] for d in datasets["served"]] == ["Price, Quote"]
+    assert [d["dataset"] for d in datasets["served"]] == [
+        f"{venue.VENUE}:live",
+        f"{venue.VENUE}:outcomes",
+    ]
+    assert [d["data"] for d in datasets["served"]] == ["Price, Quote", "Outcome"]
+    assert [d["arrives"] for d in datasets["served"]] == ["pull, stream", "push"]
+    assert datasets["served"][1]["default_terms"].startswith("kept"), "outcomes are kept"
     assert all(d["day"] == "Etc/UTC, ends 00:00" for d in datasets["served"])
     assert datasets["served"][0]["recorded"] > 0 and datasets["served"][0]["last_recorded"]
+    assert datasets["served"][1]["recorded"] == 0, "no contract it serves is determined"
     assert datasets["standing_wants"] == 1
     assert [(w["want_id"], w["kept_current"]) for w in datasets["wants"]] == [
         ("WNT-2", True),
@@ -132,10 +139,25 @@ def test_datasets_says_whether_a_deployment_admin_licensed_it(worked: tuple[Any,
     client = PageClient(venue.page.pages)
     assert client.call_tool("read_datasets", level="admin").data["served"][0]["licensed"] is False
     assert "Not licensed yet" in client.get("/datasets", "admin").text
-    dgm.licensed = frozenset({dgm.dataset("live")})
-    assert client.call_tool("read_datasets", level="admin").data["served"][0]["licensed"] is True
+    dgm.licensed = frozenset({dgm.dataset("live"), dgm.dataset("outcomes")})
+    served = client.call_tool("read_datasets", level="admin").data["served"]
+    assert [d["licensed"] for d in served] == [True, True]
     shown = client.get("/datasets", "admin").text
     assert "Not licensed yet" not in shown and "Licensed" in shown
+
+
+def test_an_outcome_recorded_counts_on_its_own_dataset(worked: tuple[Any, Lake]) -> None:
+    dgm, lake = worked
+    live = dgm.counts.recorded
+
+    async def resolved() -> None:
+        subject = await lake.held(dgm, venue.RESOLVED)
+        await dgm.name([subject])
+        await dgm.record_outcomes([dgm.contracts.serving(subject)])
+
+    asyncio.run(resolved())
+    served = PageClient(venue.page.pages).call_tool("read_datasets", level="admin").data["served"]
+    assert [d["recorded"] for d in served] == [live, 1] and served[1]["last_recorded"]
 
 
 def test_the_wants_carry_the_kits_search_beside_its_pager(worked: tuple[Any, Lake]) -> None:
@@ -163,7 +185,7 @@ def test_the_roles_figures_in_its_order(worked: tuple[Any, Lake]) -> None:
     assert [f.label for f in figures] == [
         "Connection", "Entitled at the vendor", "Stream", "Last recorded",
     ]  # fmt: skip
-    assert [f.value for f in figures[:3]] == ["Sample data", "1 of 1 datasets", "Does not stream"]
+    assert [f.value for f in figures[:3]] == ["Sample data", "2 of 2 datasets", "Does not stream"]
 
 
 def test_a_tool_is_refused_below_manage(worked: tuple[Any, Lake]) -> None:
