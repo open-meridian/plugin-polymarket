@@ -19,6 +19,12 @@ with the venue as source. A record is minted only where none resolves; one
 that does not resolve (its identifiers meet two records) is reported through
 W3.2, once, and nothing is priced until it does.
 
+**The outcomes recorded** (contract v23): each contract's determination as
+last recorded in the lake -- its stage, its settlement value, the venue's
+word, its valid time and the raw record it was read from -- so a version is
+recorded only when the venue's statement changes, and a restart sends
+nothing the lake holds already.
+
 It is the plugin's to rebuild: kept as `contracts-<mode>.json` beside the raw
 records, read at start, and each contract read again from the venue once a
 day. Nothing else reads it (decisions/028).
@@ -33,7 +39,29 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from .market import Contract, Unread
+from .market import Contract, Resolution, Unread
+
+
+@dataclass(frozen=True)
+class Recorded:
+    """A contract's outcome as last recorded in the lake (contract v23)."""
+
+    stage: str
+    #: What one contract settles at, in the venue's cash, as text.
+    value: str
+    scheme: str
+    word: str
+    text: str
+    settled_at_ns: int
+    #: Its valid time, the determination's, and whether the venue stated it.
+    valid_from_ns: int
+    stated: bool
+    raw_key: str
+
+    def says(self) -> tuple[str, Decimal, str, str, str, int]:
+        """What the venue stated, which a new version changes."""
+        return (self.stage, Decimal(self.value), self.scheme, self.word, self.text,
+                self.settled_at_ns)  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -43,6 +71,22 @@ class Mapped:
     contract: Contract
     subject: str
     cash_id: str
+
+
+def _resolution(held: dict[str, Any] | None) -> Resolution | None:
+    if not held:
+        return None
+    value = held.get("value")
+    return Resolution(
+        stage=held["stage"],
+        value=None if value is None else Decimal(value),
+        scheme=held.get("scheme", ""),
+        word=held.get("word", ""),
+        text=held.get("text", ""),
+        determined_at_ns=int(held.get("determined_at_ns", 0)),
+        settled_at_ns=int(held.get("settled_at_ns", 0)),
+        unread=tuple(Unread(**u) for u in held.get("unread", [])),
+    )
 
 
 def _contract(held: dict[str, Any]) -> Contract:
@@ -58,12 +102,17 @@ def _contract(held: dict[str, Any]) -> Contract:
         market=held.get("market", ""),
         raw_key=held.get("raw_key", ""),
         unread=tuple(Unread(**u) for u in held.get("unread", [])),
+        resolution=_resolution(held.get("resolution")),
+        read_at_ns=int(held.get("read_at_ns", 0)),
     )
 
 
 def _held(contract: Contract) -> dict[str, Any]:
     body = asdict(contract)
     body["payout"] = None if contract.payout is None else str(contract.payout)
+    if contract.resolution is not None:
+        value = contract.resolution.value
+        body["resolution"]["value"] = None if value is None else str(value)
     return body
 
 
@@ -84,6 +133,8 @@ class ContractMap:
         self.missing: dict[str, str] = {}
         #: When the contracts were last read again, in UTC nanoseconds.
         self.read_at_ns = 0
+        #: Each contract's outcome as last recorded, by the venue's code.
+        self.outcomes: dict[str, Recorded] = {}
 
     # ── Kept ─────────────────────────────────────────────────────────────
 
@@ -97,6 +148,7 @@ class ContractMap:
         self.cash_id = str(held.get("cash_id", ""))
         self.missing = dict(held.get("missing", {}))
         self.read_at_ns = int(held.get("read_at_ns", 0))
+        self.outcomes = {code: Recorded(**o) for code, o in held.get("outcomes", {}).items()}
         return True
 
     def save(self) -> None:
@@ -109,6 +161,7 @@ class ContractMap:
             "cash_id": self.cash_id,
             "missing": self.missing,
             "read_at_ns": self.read_at_ns,
+            "outcomes": {code: asdict(o) for code, o in sorted(self.outcomes.items())},
         }
         written = self.path.with_suffix(".tmp")
         written.write_text(json.dumps(body, indent=1, sort_keys=True), encoding="utf-8")

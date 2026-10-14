@@ -18,10 +18,10 @@ same order. Neither shows a price, a side of the book or a size.
 
 ## Datasets
 
-- **Served**: its dataset, with its data, how rows arrive, its day and
-  default terms, whether a deployment admin has licensed it ("Licensed" or
-  "Not licensed yet"), what it recorded and declined, and when it last
-  recorded.
+- **Served**: each of its datasets, prices and quotes (`live`) and
+  outcomes (`outcomes`), with its data, how rows arrive, its day and default
+  terms, whether a deployment admin has licensed it ("Licensed" or "Not
+  licensed yet"), what it recorded and declined, and when it last recorded.
 - **Wants**: the wants the lake sent it, those it keeps current first, each
   with how many rows it recorded and subjects it declined; the search above
   them narrows them as you type, and the pager pages them.

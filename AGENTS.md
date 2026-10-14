@@ -55,7 +55,19 @@ it.
   `beyond_history`, `source_silent`). A case of the suite about a kind of
   data the plugin never publishes (its `about`: closes, bars, trades, a
   currency's rate, a security's price) is named in `not_presented` with why
-  (`tests/venue_cases.py`); every other case is mapped.
+  (`tests/venue_cases.py`); every other case is mapped. Of the outcome
+  cases, `restates-a-disputed-outcome` (`about: disputed outcomes`) is not
+  presented: Polymarket states no dispute's answer, so it records final
+  outcomes alone.
+- **Outcomes** (contract v23, the lake plan's "vL1c"): `dgm.record_outcomes`
+  records each served token's outcome in the `outcomes` dataset, unasked,
+  from the token's own side (`pays`, `pays_nothing`, `pays_part`, by its
+  settlement value against its payout), the venue's word kept as reported,
+  one row key per token (`<token>:outcome`), a new version only when the
+  venue's statement changes. `convert.resolution` reads a Gamma market
+  resolved (`umaResolutionStatus` `resolved`, closed) into a final outcome
+  from `outcomePrices` (each exactly 1, 0 or 0.5); a proposal or a dispute
+  states no answer and is not recorded. No business date; no `want_id`.
 - **A data plugin shows no market data** (ruled 2026-10-03). Its pages are
   the data role's (meridian-design `spec/plugin-pages-follow-their-role.md`):
   Connection and Datasets, under Manage alone, extending the SDK's role

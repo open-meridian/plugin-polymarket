@@ -5,12 +5,13 @@
 Upload and launch the plugin as any other. It asks for the `data` role and
 storage for its raw responses, and no key.
 
-## 2. License its dataset
+## 2. License its datasets
 
-On the dashboard's **Data sources** page, the plugin's dataset is listed
-with its default licence:
+On the dashboard's **Data sources** page, the plugin's datasets are listed
+with their default licences:
 
 - `<instance>:live`: kept two days.
+- `<instance>:outcomes`: kept.
 
 The default says nothing about Polymarket's terms. Set the deployment's
 licence there, with a note saying why, as you and the people using the
@@ -18,9 +19,10 @@ deployment have settled it. What you enter is what your deployment records.
 
 ## 3. Entitle the plugins that read it
 
-On the same page, entitle each reading plugin to the dataset. Prices are
+On the same page, entitle each reading plugin to the datasets. Prices are
 read by the reading roles; quotes by the roles that read at a higher
-resolution (signal, portfolio, order and execution plugins). Nothing reads a
+resolution (signal, portfolio, order and execution plugins); outcomes by the
+reading roles and by operations, which explains a payout with them. Nothing reads a
 dataset it is not entitled to.
 
 ## 4. Complete the tokens' records

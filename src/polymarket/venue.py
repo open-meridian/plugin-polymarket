@@ -2,7 +2,8 @@
 
 Public reads, no key: Polymarket's market data API (Gamma) at
 gamma-api.polymarket.com, `/markets?clob_token_ids=` (the market an outcome
-token belongs to, asked only for a subject the lake wants), and its order
+token belongs to, asked only for a subject the lake wants, and asked again
+for its outcome once it is past its end), and its order
 book's (the CLOB) at clob.polymarket.com, `/book?token_id=` (the token's
 resting bids and offers) and `/last-trade-price?token_id=` (its last
 trade's price and side). Nothing here holds a
@@ -206,10 +207,12 @@ class Polymarket:
         self.health.last_failed_ns = self.clock_ns()
         self.health.last_error = why
 
-    def market(self, token: str) -> Fetched:
+    def market(self, token: str, live: bool = False) -> Fetched:
         """The market an outcome token belongs to, by the token's ID: a list,
-        empty where Polymarket knows no market by it."""
-        return self._get("market", token, GAMMA, "/markets", {"clob_token_ids": token})
+        empty where Polymarket knows no market by it. `live`, read again for
+        its outcome, kept as a line of the day's live responses, added only
+        when it changed."""
+        return self._get("market", token, GAMMA, "/markets", {"clob_token_ids": token}, live=live)
 
     def book(self, token: str) -> Fetched:
         """A token's resting bids and offers."""

@@ -5,24 +5,26 @@ deployment's lake: a data plugin. For each outcome token a deployment's
 readers ask about -- each a binary event contract -- it records the last
 trade's price and the best bid and offer, per token in USDC, and the best bid
 and offer with their sizes as a quote, every figure exactly as Polymarket
-stated it. No key: Polymarket's market data is public.
+stated it; and, from contract v23, each such token's outcome once Polymarket
+resolves its market. No key: Polymarket's market data is public.
 
 It is the second half of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): the two
 pass one data suite unchanged between them (meridian-design
 `plans/the-lake-prices-the-book.md`, row 20).
 
-**Status.** 0.4.0, built on open-meridian 0.26.0 (contract v22), holding the
+**Status.** 0.5.0, built on open-meridian 0.27.0 (contract v23), holding the
 role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
 ## What it does
 
-One dataset, declared from code in its catalogue (`declaration.py`):
+Two datasets, declared from code in its catalogue (`declaration.py`):
 
 | Dataset | Data | Modes | Day | Default licence |
 |---|---|---|---|---|
 | `<instance>:live` | each token's last trade, best bid and offer as prices; its best bid and offer with sizes as a quote | pull, stream | `Etc/UTC`, ending at 00:00 | kept two days |
+| `<instance>:outcomes` | each token's outcome once its market is resolved, final (contract v23) | push | `Etc/UTC`, ending at 00:00 (an outcome names no business date) | kept |
 
 - **Per subject wanted, never the whole venue.** A reader reads a price or
   quote nothing has recorded; the lake asks this plugin (a want). The plugin
@@ -62,6 +64,24 @@ One dataset, declared from code in its catalogue (`declaration.py`):
   page, which replaces the default; the default claims nothing about
   Polymarket's terms, which are for the deployment admin and whoever uses
   the deployment to settle.
+- **Outcomes** (contract v23; meridian-design `plans/the-lake-prices-the-book.md`,
+  "vL1c"). For each token a reader asked about, the plugin records its
+  outcome, unasked, once Polymarket resolves its market (Gamma's
+  `umaResolutionStatus` `resolved`, the market closed): from the token's own
+  side -- one USDC, nothing, or half for an "Unknown/50-50" resolution, as
+  the market's `outcomePrices` state it -- so a NO token of a market
+  resolved YES pays nothing. Polymarket's word, the token's own stated
+  price, is kept as reported. Its stage is final: a UMA resolution, once
+  made, is reported on chain, and Polymarket states no stage between a
+  proposal and it. A proposal in its 2-hour challenge period, and a dispute,
+  state their stage but never their answer (Gamma's `outcomePrices` stay the
+  book's while one stands), so nothing is recorded for either: a Polymarket
+  outcome is recorded at its final stage alone. Polymarket states no time
+  of resolution or payout: an outcome is valid from when the answer first
+  stating it arrived, its payout time left 0 (holders redeem their tokens
+  themselves). One row key per token (`<token>:outcome`); a token past its
+  market's end is read again each minute until its outcome is recorded.
+  Kept by default; paying holders is servicing's, not the lake's.
 - **The venue** is named as Coinbase's and Kraken's plugins name theirs, by
   its code (`symbol` `polymarket`, source `polymarket`: ISO 10383 has no MIC
   for it). The platform's venue master holds Polymarket (international)
@@ -80,7 +100,14 @@ restart leaves no gap of trades to read back (`a-restarts-gap-backfilled`,
 contract v20, not presented): its live dataset is read again when it is
 next wanted. Contract v22's two calendar cases are not presented either: it
 reads no settlement calendar, and an event contract settles on its outcome,
-so it never computes a settlement date. Every other case passes, a price in a stablecoin on the token's
+so it never computes a settlement date. Of contract v23's three outcome
+cases, `records-an-outcome` is mapped to a resolution recorded final (the
+case takes determined or final, ruled 2026-10-13) and
+`records-a-partial-payout` to a 50-50 resolution;
+`restates-a-disputed-outcome` (`about: disputed outcomes`) is not presented:
+Polymarket's public reads state a resolution only once it is final; a
+proposal's answer and a dispute are not stated, so no outcome is recorded
+before the final one to be restated as disputed. Every other case passes, a price in a stablecoin on the token's
 own instrument and `reads-its-datasets-licences` among them: it reads which
 of its datasets a deployment admin has licensed, on start and each minute.
 
@@ -109,10 +136,11 @@ the reading roles.
   and what the plugin spends of it, its calls and the rate-limited ones
   waited out, the last call and the last error; "Stream" -- "Does not
   stream": it reads a contract when it is wanted, at most once a second.
-- **Datasets**: "Served" -- its dataset, its data, how its rows arrive, its
-  day, its default terms and whether a deployment admin has licensed it
-  ("Licensed" or "Not licensed yet", read from the deployment from contract
-  v20), what it recorded and declined and when it last recorded; "Wants" --
+- **Datasets**: "Served" -- each dataset (`live`, `outcomes`), its data, how
+  its rows arrive, its day, its default terms and whether a deployment admin
+  has licensed it ("Licensed" or "Not licensed yet", read from the
+  deployment from contract v20), what it recorded and declined and when it
+  last recorded, each dataset's own; "Wants" --
   the wants it heard and the standing wants it keeps current, searched and
   paged by the kit's `om-pager`; "Subjects" -- whether the deployment lets
   it read an instrument's record; then a section under Polymarket's name: the
@@ -153,9 +181,10 @@ reader (`e2e/reader.py`, holding `custody` to name a custodian's records,
 `reporting` to read prices and `signal` to read quotes): the catalogue
 listed, nothing asked of Polymarket before a want, a custodian's outcome
 token read and named, its prices and quote recorded on Polymarket's own USDC
-instrument, read and heard, a market of three outcomes declined, both read
-tools answering what the pages show, and `store lake` numbering each row
-with no holes (`e2e/run.py` says each step).
+instrument, read and heard, a market of three outcomes declined, a resolved
+token's outcome recorded, kept, heard and read back, both read tools
+answering what the pages show, and `store lake` numbering each row with no
+holes and keeping the outcome's one (`e2e/run.py` says each step).
 
     docker run --rm --entrypoint python -v "$PWD/e2e":/e2e:ro \
         -v "$PWD/recordings":/recordings polymarket:local /e2e/record.py TOKEN ...

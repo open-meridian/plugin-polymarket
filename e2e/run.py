@@ -3,13 +3,16 @@ harness (contracts v19 and v20), with sample data, beside a reader (e2e/reader.p
 
 1. Launched: the plugin registers its catalogue; the deployment admin's tool
    lists its one dataset, `live`, of prices and quotes, on the UTC day ending
-   at 00:00, pulled or streamed, its default licence kept two days.
+   at 00:00, pulled or streamed, its default licence kept two days; and from
+   contract v23 `outcomes`, pushed, kept by default.
 2. Sample data on: nothing is asked of the venue and no record minted
    until the lake wants something -- never the venue's list. The reader then
    names an outcome token as a custodian's book holds it, by the custodian's
-   own symbol, and a token of a market of three outcomes the same way.
-3. Licensed and entitled: the admin sets the dataset's licence -- kept two
-   days, as the default says -- and entitles the reader to it.
+   own symbol, a token of a market of three outcomes the same way, and the
+   YES token of a market Polymarket has resolved YES.
+3. Licensed and entitled: the admin sets each dataset's licence as its
+   default says -- `live` kept two days, `outcomes` kept -- and entitles the
+   reader to both.
 4. Prices wanted and recorded: the reader follows the token and reads its
    latest; the lake asks the plugin, which reads the record (W3.6), names it
    Polymarket's token by the custodian's symbol, joins the token's ID to it
@@ -20,6 +23,13 @@ harness (contracts v19 and v20), with sample data, beside a reader (e2e/reader.p
    its raw record and the venue as reported.
 5. Quotes wanted and recorded: the reader reads its latest quote; the
    plugin records its best bid and offer with their sizes, read and heard.
+6a. An outcome (contract v23): the reader asks for the resolved token's
+   price; the plugin names it and records its outcome, unasked, in
+   `outcomes` -- from the token's own side, it pays its full payout, final,
+   settling at one USDC on Polymarket's USDC record, Polymarket's word (the
+   token's own stated price, 1) kept as reported, valid from when the
+   answer stating it arrived, no payout time, no business date -- which the
+   reader hears and reads back as version 1.
 6. Declined: the token of a market of three outcomes is declined as not
    covered.
 7. Parity: the plugin's two read tools answer through the deployment's MCP
@@ -50,6 +60,7 @@ from decimal import Decimal
 VENUE = "polymarket"
 NAME = "Polymarket"
 DATASET = f"{VENUE}:live"
+OUTCOMES = f"{VENUE}:outcomes"
 LOG = ".e2e/runner.log"
 RECORDED = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--recorded=")]
 EXACT = not RECORDED
@@ -60,6 +71,12 @@ COMPOSE = ["docker", "compose", "-p", f"{VENUE}-e2e", "-f", ".e2e/harness/compos
 #: states, and a token of a market of three outcomes, which is not binary.
 CONTRACT = "71321045679252212594626385532706912750332728571942532289631379312455583992563"
 NOT_BINARY = "30000000000000000000000000000000000000000000000000000000000000000000000000041"
+#: The YES token of a market Polymarket has resolved YES (contract v23), and
+#: its outcome.
+RESOLVED = "40000000000000000000000000000000000000000000000000000000000000000000000000053"
+OUTCOME = {"determination": "OUTCOME_DETERMINATION_PAYS", "stage": "OUTCOME_STAGE_FINAL",
+           "amount": "1", "as_reported": "polymarket:outcomePrices=1", "settled_at_ns": 0,
+           "source_times": 0, "currency_code": ""}
 STATED = {"PRICE_KIND_LAST": "0.440", "PRICE_KIND_BID": "0.43", "PRICE_KIND_ASK": "0.45"}
 QUOTE = {"bid_amount": "0.43", "bid_quantity": "550.5", "ask_amount": "0.45",
          "ask_quantity": "125.25"}
@@ -161,9 +178,14 @@ def run():
     # 1. The catalogue, as the deployment admin's tool lists it.
     def datasets():
         held = {d["dataset"]: d for d in
-                call("dashboard__list_datasets", {}, "read")["data"]["datasets"]}
+                call("dashboard__list_datasets", {}, "read", "unchanged")["data"]["datasets"]}
         return held if DATASET in held else None
     held = until(90, datasets, "step 1, the dataset was not listed")
+    must(OUTCOMES in held, f"step 1, the outcomes dataset is listed: {sorted(held)}")
+    entry, licence = held[OUTCOMES]["catalogue_entry"], held[OUTCOMES]["licence"]
+    must(entry["modes"] == ["push"] and licence["kept"] is True
+         and licence["set_by_the_deployment"] is False,
+         f"step 1, outcomes pushed and kept by default: {entry}, {licence}")
     entry, licence = held[DATASET]["catalogue_entry"], held[DATASET]["licence"]
     must(entry["modes"] == ["pull", "stream"] and entry["day_time_zone"] == "Etc/UTC"
          and entry.get("day_end_minute", 0) == 0, f"step 1, its entry: {entry}")
@@ -184,19 +206,23 @@ def run():
     must(f"({VENUE})" not in listed and contract not in listed,
          f"step 2, no record minted before a want: {listed}")
     for name, scheme, value, source in (("contract", "symbol", contract, "e2e-custodian"),
-                                        ("range", "symbol", NOT_BINARY, "e2e-custodian")):
+                                        ("range", "symbol", NOT_BINARY, "e2e-custodian"),
+                                        ("resolved", "symbol", RESOLVED, "e2e-custodian")):
         query = urllib.parse.urlencode({"name": name, "scheme": scheme, "value": value,
                                         "source": source})
         ids = read(f"/resolve?{query}")
-    subject, ranged = ids["contract"], ids["range"]
+    subject, ranged, resolved = ids["contract"], ids["range"], ids["resolved"]
 
     # 3. Licensed as the default says, and entitled.
     runner("licence", DATASET, "kept=true", "retention_days=2", "display=true",
            "personal_use=false", "note=Kept two days, for the e2e's reader.")
     runner("entitle", "--instance", "reader", DATASET, "note=The e2e's reader.")
+    runner("licence", OUTCOMES, "kept=true", "retention_days=0", "display=true",
+           "personal_use=false", "note=Kept, as the default says, for the e2e's reader.")
+    runner("entitle", "--instance", "reader", OUTCOMES, "note=The e2e's reader.")
 
     # 4. Prices wanted, recorded, read and heard.
-    read(f"/follow?subject={subject}")
+    read(f"/follow?subject={subject}&subject={resolved}")
     first = read(f"/prices?subject={subject}&dataset={DATASET}")
     # The lake asks the plugin at once: unanswered as asked or, where the
     # plugin's answer is already in, the rows it recorded.
@@ -244,6 +270,26 @@ def run():
          and not quote.get("bid_currency_code") and not quote.get("ask_currency_code"),
          f"step 5, the quote in Polymarket's USDC: {quote}")
 
+    # 6a. An outcome: the resolved token named, its outcome recorded unasked,
+    # heard and read back.
+    if EXACT:
+        read(f"/prices?subject={resolved}&dataset={DATASET}")
+
+        def outcome_heard():
+            rows = [h for h in read("/heard")["heard"]
+                    if h["row"] == "outcome" and h["subject"] == resolved]
+            return rows or None
+        [row] = until(90, outcome_heard, "step 6a, the outcome was not heard")
+        listed = read(f"/outcomes?subject={resolved}")["outcomes"]
+        must(len(listed) == 1, f"step 6a, one outcome in force: {listed}")
+        for said in (row, listed[0]):
+            must(all(said[k] == v for k, v in OUTCOME.items()) and said["instrument_id"] == usdc,
+                 f"step 6a, the outcome from the token's side, in USDC, its word kept: {said}")
+            must(said["dataset"] == OUTCOMES and said["row_key"] == f"{RESOLVED}:outcome"
+                 and said["version"] == 1 and not said["business_date"]
+                 and said["raw"].startswith("responses/"),
+                 f"step 6a, one row key per token, version 1, its raw record: {said}")
+
     # 6. Declined: a market of three outcomes is not binary.
     read(f"/prices?subject={ranged}&dataset={DATASET}")
 
@@ -258,10 +304,12 @@ def run():
          and "No key needed" in shown and "Does not stream" in shown and NAME in shown,
          "step 7, the Connection page shows the same")
     served = call(named["read_datasets"], {}, "read", "unchanged")["data"]
-    must([d["dataset"] for d in served["served"]] == [DATASET]
-         and served["contracts_mapped"] == 1 and served["subjects_named"] == 1
+    mapped = 2 if EXACT else 1
+    must([d["dataset"] for d in served["served"]] == [DATASET, OUTCOMES]
+         and served["contracts_mapped"] == mapped and served["subjects_named"] == mapped
          and served["cash"] == "USDC" and served["cash_instrument"] == usdc
-         and served["payouts"] == ["1 USDC"] and served["served"][0]["recorded"] >= 3,
+         and served["payouts"] == ["1 USDC"] and served["served"][0]["recorded"] >= 3
+         and served["served"][1]["recorded"] == (1 if EXACT else 0),
          f"step 7, read_datasets: {served}")
     def licensed():
         rows = call(named["read_datasets"], {}, "read", "unchanged")["data"]["served"]
@@ -270,7 +318,8 @@ def run():
     shown = page(VENUE, "admin", "/datasets")
     must("Not licensed yet" not in shown and "Licensed" in shown,
          "step 7, the Datasets page says the dataset licensed")
-    must("1 contract mapped for 1 subject" in shown and "each contract pays 1 USDC" in shown,
+    many = "2 contracts mapped for 2 subjects" if EXACT else "1 contract mapped for 1 subject"
+    must(many in shown and "each contract pays 1 USDC" in shown,
          "step 7, the Datasets page shows the same")
 
     # 8. Raw responses kept, and the lake's record.
@@ -278,7 +327,7 @@ def run():
                    "from meridian import edge; "
                    "print(sum(1 for p in (edge.storage_dir() / 'responses').rglob('*') if p.is_file()))")
     must(int(kept.stdout.strip() or 0) >= 3, f"step 8, raw responses in storage: {kept.stdout}")
-    names = {subject: "CONTRACT", ranged: "RANGE", usdc: "USDC"}
+    names = {subject: "CONTRACT", ranged: "RANGE", resolved: "RESOLVED", usdc: "USDC"}
 
     def lake():
         lines = compose("run", "--rm", "-T", "store", "lake").stdout.split("\n")
@@ -296,7 +345,14 @@ def run():
          f"step 8, the rows kept numbered from 1 with no holes: {sequences}")
     must({row[6] for row in rows} == {"CONTRACT"} and all(row[9] == "" for row in rows),
          f"step 8, each row the token's, with no business date: {rows}")
-    must(any(line.startswith(f"want|{DATASET}|asked|CONTRACT|") for line in lines),
+    kept_rows = [line.split("|") for line in lines if line.startswith(f"row|{OUTCOMES}|")]
+    must(not EXACT or [(r[4], r[5], r[6]) for r in kept_rows] == [(f"{RESOLVED}:outcome", "1",
+                                                                    "RESOLVED")],
+         f"step 8, the outcome's one version kept: {kept_rows}")
+    # The resolved token is followed beside the contract, so a want may ask
+    # for both.
+    must(any(line.startswith(f"want|{DATASET}|asked|")
+             and "CONTRACT" in line.split("|")[3].split(",") for line in lines),
          f"step 8, the want asked: {lines}")
     must(any(line.startswith(f"miss|{VENUE}|") for line in lines),
          f"step 8, the venue's miss counted: {lines}")
@@ -307,7 +363,9 @@ def run():
           "custodian's outcome token, known by its own symbol, read and named, the token's ID "
           "joined to it, and its last trade, bid and offer recorded per token on Polymarket's "
           "own USDC instrument, never the dollar, read and heard; its quote with sizes; the "
-          "token of a market of three outcomes declined as not covered; read_connection and "
+          "token of a market of three outcomes declined as not covered; a resolved token's "
+          "outcome recorded unasked from its own side, final, kept, heard and read back; "
+          "read_connection and "
           "read_datasets answering what the pages show, the dataset licensed, the payout one USDC; raw responses "
           "in storage; and `store lake` numbering each row with no holes, the wants and the "
           "miss")

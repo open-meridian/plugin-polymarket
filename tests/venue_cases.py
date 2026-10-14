@@ -55,6 +55,32 @@ NOT_BINARY = "300000000000000000000000000000000000000000000000000000000000000000
 #: Polymarket prices in USDC, its own token instrument: never a currency code.
 STABLE = True
 
+# ── Outcomes (contract v23) ─────────────────────────────────────────────────
+
+#: The YES token of a market Polymarket has resolved YES: its outcome from its
+#: own side, final, with Polymarket's word, the token's own stated price.
+RESOLVED = "40000000000000000000000000000000000000000000000000000000000000000000000000053"
+RESOLVED_STAGE = "OUTCOME_STAGE_FINAL"
+WORD = ("polymarket:outcomePrices", "1")
+#: The same market's NO token: it pays nothing.
+RESOLVED_LOSER = "40000000000000000000000000000000000000000000000000000000000000000000000000054"
+#: A token of a market resolved "Unknown/50-50": half its payout.
+PARTIAL, PARTIAL_VALUE = (
+    "60000000000000000000000000000000000000000000000000000000000000000000000000067",
+    "0.5",
+)
+#: A token past its market's end with a resolution proposed: Gamma states the
+#: stage and not the proposal's answer, so nothing is recorded.
+PENDING = "80000000000000000000000000000000000000000000000000000000000000000000000000081"
+#: No later stage: a Polymarket resolution is final once made.
+LATER: tuple[tuple[Path, str, int], ...] = ()
+#: The suite's outcome cases as Polymarket presents them: an outcome recorded
+#: at the stage it states, final (the case takes determined or final, ruled
+#: 2026-10-13), and a partial payout. A dispute it never states: see
+#: NOT_PRESENTED.
+DETERMINED: str | None = RESOLVED
+DISPUTED: tuple[str, tuple[Path, ...]] | None = None
+
 #: The suite's cases Polymarket's one dataset never presents, each with why:
 #: the dataset publishes prices and quotes now, per outcome token, in USDC.
 NOT_PRESENTED = {
@@ -76,6 +102,8 @@ NOT_PRESENTED = {
     "no settlement calendar",
     "asks-for-a-settlement-date": "it records prices and quotes as published; an event contract "
     "settles on its outcome, and it never computes a settlement date",
+    "restates-a-disputed-outcome": "Polymarket's public reads state a resolution only once it is "
+    "final; a proposal's answer and a dispute are not stated",
 }
 
 

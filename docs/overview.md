@@ -53,6 +53,17 @@ Prices are in Polymarket's own USDC, a record of its own in your deployment,
 never in dollars: USDC is a token, valued in dollars only through a price of
 it, never by assuming one for one.
 
+## Outcomes
+
+Once Polymarket resolves the market of a token a reader asked about, the
+plugin records the token's outcome: whether it pays its one USDC, pays
+nothing, or pays half (an "Unknown/50-50" resolution), from the token's own
+side, so the NO token of a market resolved YES pays nothing. It records the
+final resolution alone: while a resolution is proposed or disputed,
+Polymarket's public data says so but does not say what was proposed.
+Outcomes are kept by default. Paying the holders of a position is not the
+plugin's: it records what Polymarket resolved.
+
 ## What it never makes up
 
 - A figure is recorded exactly as Polymarket stated it, never rounded and
@@ -66,4 +77,5 @@ it, never by assuming one for one.
 Polymarket's answers, as received, in the storage your deployment gives the
 plugin, for 30 days by default, each price naming the answer it came from.
 Past that window, a day's answers are archived, kept or deleted as you set
-it. Its dataset's default licence keeps its rows two days.
+it. Its live dataset's default licence keeps its rows two days; its outcomes
+dataset is kept.

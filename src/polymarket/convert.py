@@ -21,6 +21,25 @@ Polymarket's vocabulary is read.
   best offer the lowest of `asks`, each with its size in tokens, prices in
   USDC as text; stated at the book's `timestamp` (milliseconds), its `hash`
   its identity.
+- **Its outcome** (contract v23; the lake plan's "vL1c") is read from the
+  same Gamma answer, and only once the market is resolved: its
+  `umaResolutionStatus` `resolved` and the market `closed`, when its
+  `outcomePrices` state what each token settles at -- one USDC, nothing, or
+  half for an "Unknown/50-50" resolution -- each exactly 1, 0 or 0.5 and
+  the market's adding up to one. The token's outcome is its own: a NO token
+  of a market resolved YES pays nothing. Its stage is final: a UMA
+  resolution, once made, is reported on chain and redeemed, and Polymarket
+  states none between a proposal and it. A proposal (`proposed`, in its
+  2-hour challenge period) and a dispute (`disputed`) state their stage but
+  never their answer -- Gamma's `outcomePrices` stay the book's while one
+  stands -- so nothing is recorded for either: the plugin records a
+  Polymarket outcome at its final stage alone (approved 2026-10-13 as a
+  plugin's choice within contract v23). Polymarket's word, kept as
+  reported, is the token's own stated price (`polymarket:outcomePrices`),
+  with each outcome and its price as text. Polymarket states no time of
+  resolution or of payout: the outcome is valid from when the answer first
+  stating it arrived, and its payout time is left 0 (holders redeem their
+  tokens themselves).
 - **The last trade** is `/last-trade-price`'s, the token's own price and the
   side that traded, which Polymarket states with no time: valid from when
   its answer first arrived. An answer naming no side is no trade (Polymarket
@@ -39,11 +58,13 @@ from decimal import Decimal
 from typing import Any
 
 from .market import (
+    FINAL,
     NANOS_PER_SECOND,
     Cash,
     Contract,
     Endpoint,
     Limits,
+    Resolution,
     Session,
     Tick,
     Top,
@@ -66,6 +87,10 @@ VENUE_IDENTIFIERS: tuple[tuple[str, str, str], ...] = (("symbol", "polymarket", 
 CASH = Cash("USDC", "token", name="USD Coin at Polymarket")
 #: What one outcome token pays if its outcome is the result: one USDC.
 PAYOUT = Decimal("1")
+#: What a resolution settles a token at: its payout, half of it, or nothing.
+SETTLES = frozenset({Decimal(0), Decimal("0.5"), PAYOUT})
+#: Where Polymarket's word for a resolution is, as reported.
+OUTCOME_PRICES = "polymarket:outcomePrices"
 
 LIMITS = Limits(
     allowed="Polymarket limits its API's requests; its market data needs no key",
@@ -113,9 +138,34 @@ def _listed(value: object) -> list[str]:
     return []
 
 
-def contract(token: str, body: Mapping[str, Any], raw_key: str) -> Contract | None:
-    """The outcome token `token` of one Gamma market, or None where the market
-    holds no such token."""
+def resolution(token: str, body: Mapping[str, Any]) -> Resolution | None:
+    """The token's outcome once its market is resolved, final; None before,
+    a proposal and a dispute among them, whose answer Gamma does not state."""
+    if str(body.get("umaResolutionStatus") or "").lower() != "resolved" or not body.get("closed"):
+        return None
+    tokens, outcomes = _listed(body.get("clobTokenIds")), _listed(body.get("outcomes"))
+    prices = _listed(body.get("outcomePrices"))
+    text = ", ".join(f"{o} {p}" for o, p in zip(outcomes, prices, strict=False))
+    read = [number(p) for p in prices]
+    if (
+        token not in tokens
+        or len(read) != len(tokens)
+        or any(p not in SETTLES for p in read)
+        or sum(p for p in read if p is not None) != PAYOUT
+    ):
+        unread = (Unread("market.outcomePrices", str(body.get("outcomePrices"))),)
+        return Resolution(stage=FINAL, value=None, unread=unread)
+    index = tokens.index(token)
+    return Resolution(
+        stage=FINAL, value=read[index], scheme=OUTCOME_PRICES, word=prices[index], text=text
+    )
+
+
+def contract(
+    token: str, body: Mapping[str, Any], raw_key: str, received_ns: int = 0
+) -> Contract | None:
+    """The outcome token `token` of one Gamma market, with its outcome once the
+    market is resolved, or None where the market holds no such token."""
     tokens, outcomes = _listed(body.get("clobTokenIds")), _listed(body.get("outcomes"))
     if token not in tokens:
         return None
@@ -134,6 +184,8 @@ def contract(token: str, body: Mapping[str, Any], raw_key: str) -> Contract | No
         status="closed" if closed else "active" if trading else "not trading",
         market=str(body.get("conditionId") or ""),
         raw_key=raw_key,
+        resolution=resolution(token, body),
+        read_at_ns=received_ns,
     )
 
 
@@ -211,23 +263,29 @@ class PolymarketMarket:
         self.session = Session(
             mode=mode,
             endpoints=(
-                Endpoint("Gamma", GAMMA if live else elsewhere, "the market a token belongs to"),
+                Endpoint(
+                    "Gamma",
+                    GAMMA if live else elsewhere,
+                    "the market a token belongs to, and its outcome",
+                ),
                 Endpoint("CLOB", CLOB if live else elsewhere, "a token's book and last trade"),
             ),
             limits=LIMITS,
             health=client.health,
         )
 
-    def contract(self, code: str) -> Contract | None:
+    def contract(self, code: str, watching: bool = False) -> Contract | None:
         try:
-            fetched = self.client.market(code)
+            fetched = self.client.market(code, live=watching)
         except VenueError as refused:
             if refused.status == NOT_FOUND:
                 return None
             raise
         markets = fetched.value if isinstance(fetched.value, list) else []
         for body in markets:
-            if isinstance(body, Mapping) and (read := contract(code, body, fetched.raw_key)):
+            if isinstance(body, Mapping) and (
+                read := contract(code, body, fetched.raw_key, fetched.received_at_ns)
+            ):
                 return read
         return None
 

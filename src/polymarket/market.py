@@ -18,6 +18,10 @@ venues differ (the plan's "one suite unchanged between the two").
   (`payout`, in the venue's cash) and when trading in it closes.
 - `Tick`: the last trade's price, per contract; `Top`: the best bid and
   offer, each with its size in contracts, a side with no order None.
+- `Resolution` (contract v23): the venue's determination of a contract,
+  from the contract's own side, at the stage the venue states -- what one
+  contract settles at, the venue's word for it as reported, and when it paid
+  out -- read from the same answer as the contract.
 - `Unread`: a value that did not read as a number, kept as sent.
 
 A price is money per contract, never a probability (plans/the-lake-prices-
@@ -102,6 +106,37 @@ class Cash:
         return self.value if self.scheme == "iso4217" else ""
 
 
+#: The stages of a determination, in the contract's words (the lake plan's
+#: "vL1c", item 2): each venue's own states are read into these in its
+#: `convert.py`.
+PROPOSED, DETERMINED, DISPUTED, FINAL = "proposed", "determined", "disputed", "final"
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """The venue's determination of one contract, at one stage, as the venue
+    states it: nothing of the contract's yet."""
+
+    #: The stage, one of PROPOSED, DETERMINED, DISPUTED and FINAL.
+    stage: str
+    #: What one contract settles at, in the venue's cash; None where the
+    #: venue states no value at this stage, or its value did not read.
+    value: Decimal | None
+    #: The venue's own word for the determination, as reported: where it is
+    #: in the venue's answer (`kalshi:result`), its code and its text. Empty
+    #: where the venue states none at this stage.
+    scheme: str = ""
+    word: str = ""
+    text: str = ""
+    #: When the venue determined it, where the venue says; 0 where it does
+    #: not, and the determination is valid from when its answer arrived.
+    determined_at_ns: int = 0
+    #: When the venue paid out, as it states it; 0 until then, or where it
+    #: states no payout.
+    settled_at_ns: int = 0
+    unread: tuple[Unread, ...] = ()
+
+
 @dataclass(frozen=True)
 class Contract:
     """One binary event contract, as the venue states it."""
@@ -128,6 +163,11 @@ class Contract:
     market: str = ""
     raw_key: str = ""
     unread: tuple[Unread, ...] = ()
+    #: Its determination as the venue states it in the same answer (contract
+    #: v23); None while the venue states none.
+    resolution: Resolution | None = None
+    #: When the answer it was read from first arrived, in UTC nanoseconds.
+    read_at_ns: int = 0
 
 
 @dataclass(frozen=True)
@@ -221,9 +261,11 @@ class Market(Protocol):
     cash: Cash
     session: Session
 
-    def contract(self, code: str) -> Contract | None:
+    def contract(self, code: str, watching: bool = False) -> Contract | None:
         """The contract the venue knows by `code`, or None where it knows
-        none by it."""
+        none by it. `watching`: read again for its determination, the answer
+        kept as a line of the day's live responses, added only when it
+        changed."""
         ...
 
     def last(self, contract: Contract) -> Tick: ...

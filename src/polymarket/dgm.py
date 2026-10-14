@@ -1,5 +1,5 @@
-"""The data plugin's work (the role `data`, contract v20): a venue's binary
-event contracts into the lake, converted at the edge.
+"""The data plugin's work (the role `data`, contracts v20 and v23): a venue's
+binary event contracts into the lake, converted at the edge.
 
 The same module in plugin-kalshi and plugin-polymarket: what differs
 between the two venues is read in each plugin's `convert.py` into the values
@@ -11,6 +11,25 @@ their sizes as a quote, recorded at most once a second per subject. A price
 is money per contract in the venue's cash, never a probability; the implied
 probability is a reader's computation (W10.6; plans/the-lake-prices-the-book,
 "The event contract").
+
+**And `outcomes`** (contract v23; the lake plan's "vL1c"): each contract's
+determination as the venue states it, from the contract's own side -- it
+pays its full payout, pays nothing, or pays part -- with what one contract
+settles at, in the venue's cash, the venue's own word kept as reported, and
+when the venue paid out where it says. One row key per contract
+(`<code>:outcome`); each change of stage the venue states (proposed,
+determined, disputed, final) or of its determination is a new version under
+it, and nothing is sent while the venue's statement is unchanged (the
+contract map keeps what was last recorded). A stage stated with no
+determination of its own carries the determination already recorded, and
+is not recorded before one is. Its valid time is the determination's: the
+venue's own time where it states one (an event source time), else when the
+answer first stating it arrived, kept from version to version until the
+determination itself changes. It names no business date and answers no want:
+it is recorded, unasked, for each contract a subject the lake asked for is
+-- when the subject is named, when the contracts are read again each day,
+and each minute for a contract past its close or no longer trading, until
+its final stage is recorded.
 
 **Per subject wanted, never the whole venue** (W3.6, W3.1, W3.14;
 contracts.py): each subject the lake asks for is the deployment's record,
@@ -75,19 +94,24 @@ from decimal import Decimal
 from typing import Any
 
 import meridian
-from meridian import Money, ObservationMeta, Price, Quote, SourceTime
+from meridian import Money, ObservationMeta, Outcome, Price, Quote, SourceTime
 from meridian.operations import as_money
 from meridian.plugin.v1 import operations_pb2 as ops
 
-from .contracts import ContractMap, Mapped
-from .market import NANOS_PER_SECOND, Contract, Market, Tick, Top, Unread, utc_day
+from .contracts import ContractMap, Mapped, Recorded
+from .market import FINAL, NANOS_PER_SECOND, Contract, Market, Tick, Top, Unread, utc_day
 
 log = logging.getLogger(__name__)
 
 LIVE = "live"
+#: The dataset of each contract's outcome (contract v23).
+OUTCOMES = "outcomes"
 PRICE, QUOTE = "meridian.v1.Price", "meridian.v1.Quote"
 #: The live dataset's pace: each subject at most once a second.
 LIVE_EVERY_SECONDS = 1.0
+#: How often a contract past its close, its final stage not yet recorded,
+#: is read again for its determination.
+OUTCOME_EVERY_SECONDS = 60.0
 #: Each contract, and the venue, read again once a day.
 REREAD_SECONDS = 86_400
 #: The lake's batch: 1 to 500 rows.
@@ -183,6 +207,11 @@ class Dgm:
     #: last read (contract v20); and whether the deployment answers that read.
     licensed: frozenset[str] = frozenset()
     reads_licences: bool = True
+    #: What it has sent the lake of its outcomes (contract v23), apart from
+    #: the live dataset's.
+    outcome_counts: Counts = field(default_factory=Counts)
+    #: Contracts whose stated determination did not read, counted once each.
+    unreadable: set[str] = field(default_factory=set)
 
     # ── Names ────────────────────────────────────────────────────────────
 
@@ -216,7 +245,7 @@ class Dgm:
             log.warning("this data plugin may not read its datasets' licences")
             self.reads_licences = False
             return self.licensed
-        mine = {self.dataset(LIVE)}
+        mine = {self.dataset(LIVE), self.dataset(OUTCOMES)}
         self.licensed = frozenset(
             licence.dataset for licence in answered.licences if licence.dataset in mine
         )
@@ -456,6 +485,7 @@ class Dgm:
         self.contracts.save()
         self.venue.asked = False
         await self.venue_id()
+        await self._outcomes_of(self.contracts.mapped())
         return self.contracts
 
     # ── Rows ─────────────────────────────────────────────────────────────
@@ -545,11 +575,12 @@ class Dgm:
                                                    want_id=want_id)  # fmt: skip
             self._count(done)
 
-    def _count(self, done: Any) -> None:
-        self.counts.recorded += int(getattr(done, "recorded", 0))
-        self.counts.restated += int(getattr(done, "restated", 0))
-        self.counts.unchanged += int(getattr(done, "unchanged", 0))
-        self.counts.last_ns = self.clock_ns()
+    def _count(self, done: Any, counts: Counts | None = None) -> None:
+        counts = counts or self.counts
+        counts.recorded += int(getattr(done, "recorded", 0))
+        counts.restated += int(getattr(done, "restated", 0))
+        counts.unchanged += int(getattr(done, "unchanged", 0))
+        counts.last_ns = self.clock_ns()
 
     async def _asked(self, call: Callable[..., Any], *args: Any) -> Any:
         """One question of the venue, off the loop: what it answered, or None
@@ -608,7 +639,130 @@ class Dgm:
             if len(prices) + len(quotes) == before:
                 declined[subject] = "source_silent"
         await self._send(prices, quotes, want_id)
+        await self._outcomes_of(self.contracts.serving(s) for s in subjects)
         return declined
+
+    # ── Outcomes (contract v23) ──────────────────────────────────────────
+
+    @staticmethod
+    def _determination(value: Decimal, contract: Contract) -> str | None:
+        """What a settlement value per contract says the contract pays: its
+        full payout, nothing, or part of it; None for no value per contract."""
+        if value < 0:
+            return None
+        if value == 0:
+            return "pays_nothing"
+        if contract.payout is None or value > contract.payout:
+            return None
+        return "pays" if value == contract.payout else "pays_part"
+
+    def outcome(self, mapped: Mapped) -> tuple[Outcome, Recorded] | None:
+        """The contract's outcome as the venue now states it, and what to keep
+        of it once recorded; None where the venue states no determination,
+        or states what was last recorded."""
+        contract = mapped.contract
+        said = contract.resolution
+        if said is None:
+            return None
+        held = self.contracts.outcomes.get(contract.code)
+        value, scheme, word, text = said.value, said.scheme, said.word, said.text
+        if value is None or not word:
+            # A stage stated with no determination of its own: the one held.
+            if held is None:
+                return None
+            value, scheme, word, text = Decimal(held.value), held.scheme, held.word, held.text
+        determination = self._determination(value, contract)
+        if determination is None:
+            if contract.code not in self.unreadable:
+                log.warning("%s's settlement value %s is no value per contract", contract.code,
+                            value)  # fmt: skip
+                self.unreadable.add(contract.code)
+                self.outcome_counts.unread += 1
+            return None
+        if held is not None and held.says() == (said.stage, value, scheme, word, text,
+                                                said.settled_at_ns):  # fmt: skip
+            return None
+        if said.determined_at_ns:
+            at, stated = said.determined_at_ns, True
+        elif held is not None and (Decimal(held.value), held.word) == (value, word):
+            at, stated = held.valid_from_ns, held.stated
+        else:
+            at, stated = contract.read_at_ns or self.clock_ns(), False
+        kept = Recorded(said.stage, str(value), scheme, word, text, said.settled_at_ns, at,
+                        stated, contract.raw_key)  # fmt: skip
+        row = Outcome(
+            meta=ObservationMeta(
+                row_key=f"{contract.code}:outcome"[:128],
+                subjects=[ops.SubjectRef(entity_id=mapped.subject)],
+                source=ops.Source(dataset=self.dataset(OUTCOMES), venue_id=self.venue.venue_id),
+                valid_from_ns=at,
+                source_times=[SourceTime(kind="event", at_ns=at)] if stated else [],
+                raw=self.plugin.raw_record(contract.raw_key),
+                unconverted=self._unconverted(said.unread),
+            ),
+            determination=determination,
+            stage=said.stage,
+            settlement_value=self._money(value, mapped),
+            settled_at_ns=said.settled_at_ns,
+            determination_as_reported=ops.AsReported(
+                scheme=scheme[:64], code=word[:128], text=(text or word)[:256]
+            ),
+        )
+        return row, kept
+
+    async def record_outcomes(self, mapped: Iterable[Mapped | None]) -> int:
+        """Each contract's outcome where the venue's statement of it changed,
+        in batches; how many versions were sent."""
+        serving = [m for m in mapped if m is not None and m.contract.resolution is not None]
+        if not serving:
+            return 0
+        await self.venue_id()
+        rows: list[Outcome] = []
+        kept: dict[str, Recorded] = {}
+        for each in serving:
+            if each.contract.code in kept:
+                continue
+            built = self.outcome(each)
+            if built is not None:
+                rows.append(built[0])
+                kept[each.contract.code] = built[1]
+        for start in range(0, len(rows), BATCH):
+            done = await self.plugin.record_outcomes(outcomes=rows[start : start + BATCH])
+            self._count(done, self.outcome_counts)
+        if kept:
+            self.contracts.outcomes.update(kept)
+            self.contracts.save()
+        return len(rows)
+
+    async def _outcomes_of(self, mapped: Iterable[Mapped | None]) -> None:
+        """Record outcomes beside other work, a refusal said and not raised:
+        the work it is beside still answers."""
+        try:
+            await self.record_outcomes(mapped)
+        except Exception as failed:  # noqa: BLE001 - said; the next pass tries again
+            log.warning("outcomes not recorded: %s", failed)
+
+    async def watch_outcomes(self) -> int:
+        """Read again each contract past its close or no longer trading, its
+        final stage not yet recorded, and record its outcome where the
+        venue's statement changed."""
+        now = self.clock_ns()
+        due: list[Mapped] = []
+        for mapped in self.contracts.mapped():
+            contract = mapped.contract
+            held = self.contracts.outcomes.get(contract.code)
+            if held is not None and held.stage == FINAL:
+                continue
+            if contract.tradable and contract.closes_at_ns > now:
+                continue
+            read = await self._asked(self.market.contract, contract.code, True)
+            if read is None:
+                continue
+            self.contracts.contracts[contract.code] = read
+            due.append(Mapped(read, mapped.subject, mapped.cash_id))
+        if due:
+            self.contracts.save()
+        return await self.record_outcomes(due)
 
     # ── Wants ────────────────────────────────────────────────────────────
 
@@ -699,14 +853,18 @@ class Dgm:
 
     async def keep_current(self, sleep: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
         """Keep each standing want's subjects current, until cancelled: at most
-        once a second; each contract, and the venue, read again once a day."""
-        last_read = time.monotonic()
+        once a second; each contract, and the venue, read again once a day;
+        and each minute the contracts due for their outcome."""
+        last_read = last_watched = time.monotonic()
         while True:
             now = time.monotonic()
             try:
                 if now - last_read >= REREAD_SECONDS:
                     await self.reread()
                     last_read = now
+                if now - last_watched >= OUTCOME_EVERY_SECONDS:
+                    last_watched = now
+                    await self.watch_outcomes()
                 await self.current()
             except Exception as failed:  # noqa: BLE001 - said, and tried again next time
                 log.warning("keeping current stopped this time: %s", failed)
