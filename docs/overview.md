@@ -4,6 +4,8 @@ The Polymarket plugin puts Polymarket's public market data for its outcome
 tokens into your deployment's lake, where the plugins that watch and value
 your book read it. It needs no key: Polymarket's market data is public.
 
+It is a data plugin: its first-use path, its two pages and its Summary figures are every data plugin's, described once on [Using a data plugin](https://open-meridian.dev/how-to/using-a-data-plugin/). These sections cover what is Polymarket's own.
+
 ## Its role
 
 It holds one role, `data`: it records prices and quotes into the lake, with
