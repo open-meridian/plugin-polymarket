@@ -16,7 +16,7 @@ spends at most five a second from a token bucket, and a 429 is waited out
 (its Retry-After, else 1, 2, 4 seconds) and asked again at most three times,
 each one counted.
 
-**Every response is a raw record first** (raw.py), kept exactly as its bytes
+**Every response is a raw record first** (`meridian.edge.RawStore`), kept exactly as its bytes
 arrived, with its status and the headers that say when it was sent, before
 anything is read from it. A body is parsed with `json_decimal`, so a JSON
 number becomes a Decimal from its own text and never a float.
@@ -37,8 +37,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from .market import Health, json_decimal
-from .raw import RawStore
+from meridian.edge import RawStore
+from meridian.roles.data import Health, json_decimal
 
 GAMMA = "https://gamma-api.polymarket.com"
 CLOB = "https://clob.polymarket.com"

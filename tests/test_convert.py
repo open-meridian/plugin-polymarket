@@ -6,8 +6,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from meridian.roles.data.event_contracts import Contract
+
 from polymarket import convert
-from polymarket.market import Contract
 
 import venue_cases as venue
 

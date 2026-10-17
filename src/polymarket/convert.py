@@ -1,4 +1,5 @@
-"""Polymarket's answers, read into the venue's values (market.py): the one place
+"""Polymarket's answers, read into the venue's values (the SDK's
+`meridian.roles.data.event_contracts`): the one place
 Polymarket's vocabulary is read.
 
 - **The cash** is Polymarket's own USDC instrument, known by its code with
@@ -57,20 +58,9 @@ from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import Any
 
-from .market import (
-    FINAL,
-    NANOS_PER_SECOND,
-    Cash,
-    Contract,
-    Endpoint,
-    Limits,
-    Resolution,
-    Session,
-    Tick,
-    Top,
-    Unread,
-    number,
-)
+from meridian.roles.data import NANOS_PER_SECOND, Endpoint, Limits, Session, Unread, number
+from meridian.roles.data.event_contracts import FINAL, Cash, Contract, Resolution, Tick, Top
+
 from .venue import BURST, CLOB, GAMMA, NOT_FOUND, RATE_PER_SECOND, Polymarket, VenueError
 
 VENUE = "polymarket"

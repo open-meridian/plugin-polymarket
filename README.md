@@ -8,12 +8,14 @@ and offer with their sizes as a quote, every figure exactly as Polymarket
 stated it; and, from contract v23, each such token's outcome once Polymarket
 resolves its market. No key: Polymarket's market data is public.
 
-It is the second half of the lake's second batch, with
-[plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): the two
-pass one data suite unchanged between them (meridian-design
-`plans/the-lake-prices-the-book.md`, row 20).
+It is one of the lake's second batch, with
+[plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
+data suite and its checks for an event-contract venue unchanged against its own conversion
+(meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.30.0), never copied
+between them.
 
-**Status.** 0.6.0, built on open-meridian 0.29.0 (contract v25: its whole declaration, and docs/, which a deployment shows on its Documentation tab), holding the
+**Status.** 0.7.0, built on open-meridian 0.30.0 (contract v25: its whole declaration, and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
 role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
@@ -167,7 +169,7 @@ level. The plugin has no route that changes anything.
 Every answer Polymarket sends, an error as much as a book, is kept in the
 storage the deployment grants the plugin before anything is read from it,
 with the request that asked for it, its status and headers, and when it
-arrived (`raw.py`); a live answer is a line of its day's file, added only
+arrived (`meridian.edge.RawStore`); a live answer is a line of its day's file, added only
 when it changed, and a row read from an unchanged answer names the line and
 time it first arrived. Each row names its raw record (`RawRecordRef`). Kept in
 units of a UTC day under `responses/`, moved past the window through the SDK.

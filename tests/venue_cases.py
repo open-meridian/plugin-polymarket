@@ -1,13 +1,14 @@
-"""Polymarket's side of the shared tests: this plugin's synthetic exchanges,
-named for what each of the data suite's cases asks a source to present.
+"""Polymarket's side of the data role's checks: this plugin's synthetic exchanges,
+named for what each of the checks asks a source to present.
 
-tests/test_suite.py, the same file in plugin-kalshi, runs the SDK's data
-suite unchanged against each plugin's own conversion; this module is the one
-place it learns which venue it is holding. Each answer comes through the
+tests/test_data_role.py runs the SDK's checks for an event-contract venue
+(`meridian.roles.data.testing.EventContractsChecks`) -- the data suite
+unchanged, the venue's work past the suite's cases, its outcomes, and the
+pages -- against this plugin's own conversion; this module is the one place
+they learn which venue they are holding. Each answer comes through the
 plugin's real client, raw records and reading (synthetic.py's transport over
-the exchanges this package carries, `src/polymarket/synthetic/`), with
-invented markets, token IDs and values; real recordings are never committed
-(the plan's Q11).
+the exchanges this package carries, `src/polymarket/synthetic/`), with invented
+markets and values; real recordings are never committed (the plan's Q11).
 """
 
 from __future__ import annotations
@@ -17,16 +18,15 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from polymarket import page, raw, synthetic
-from polymarket.contracts import ContractMap
+from meridian.edge import RawStore
+from meridian.roles.data.event_contracts import Market
+
+from polymarket import page
 from polymarket.convert import PolymarketMarket
-from polymarket.dgm import Dgm, Standing
-from polymarket.market import Market
-from polymarket.raw import RawStore
 from polymarket.synthetic import Synthetic
 from polymarket.venue import Polymarket, RateLimiter
 
-__all__ = ["ContractMap", "Dgm", "Standing", "market", "page", "raw", "synthetic"]
+__all__ = ["page"]
 
 SYNTHETIC = Path(__file__).parent.parent / "src" / "polymarket" / "synthetic"
 
