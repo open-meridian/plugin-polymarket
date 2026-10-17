@@ -79,7 +79,8 @@ it.
   the data role's (meridian-design `spec/plugin-pages-follow-their-role.md`):
   Connection and Datasets, under Manage alone, drawn by the SDK's templates for
   an event-contract venue (`meridian/roles/data/event_contracts/connection.html`, `datasets.html`,
-  extending the role's) from `event_contracts.Connection` and `event_contracts.Datasets`.
+  extending the role's) from `event_contracts.ConnectionRead` and
+  `event_contracts.DatasetsRead`.
   Their sections, rows, labels and "not set up yet" states are the role's
   and are never renamed, reordered or dropped; the venue's nuance goes only
   at the template's blocks: the venue master's ID under "Key", and a section

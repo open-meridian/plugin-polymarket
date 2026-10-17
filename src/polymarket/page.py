@@ -48,16 +48,20 @@ def hold(feed: event_contracts.Feed) -> None:
     HELD.feed = feed
 
 
-def connection_now() -> event_contracts.Connection:
+def connection_now() -> event_contracts.ConnectionRead:
     return event_contracts.connection_read(HELD.feed, NAME, ENTITLED)
 
 
-def datasets_now() -> event_contracts.Datasets:
+def datasets_now() -> event_contracts.DatasetsRead:
     return event_contracts.datasets_read(HELD.feed, CATALOGUE, VENUE, ENTITLED, VENDOR_NOTE)
 
 
 @pages.page(
-    "/", "Connection", levels="admin", answers=event_contracts.Connection, name="read_connection"
+    "/",
+    "Connection",
+    levels="admin",
+    answers=event_contracts.ConnectionRead,
+    name="read_connection",
 )
 def connection(request: meridian.Request) -> meridian.Response:
     """How the plugin reaches Polymarket: the mode, no key needed, what Polymarket
@@ -68,7 +72,7 @@ def connection(request: meridian.Request) -> meridian.Response:
 
 
 @pages.page(
-    "/datasets", "Datasets", levels="admin", answers=event_contracts.Datasets,
+    "/datasets", "Datasets", levels="admin", answers=event_contracts.DatasetsRead,
     name="read_datasets",
 )  # fmt: skip
 def datasets(request: meridian.Request) -> meridian.Response:
