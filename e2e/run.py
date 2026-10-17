@@ -208,8 +208,12 @@ def run():
     for name, scheme, value, source in (("contract", "symbol", contract, "e2e-custodian"),
                                         ("range", "symbol", NOT_BINARY, "e2e-custodian"),
                                         ("resolved", "symbol", RESOLVED, "e2e-custodian")):
+        # Contract v24 (W3.7): the custodian states the contract's description
+        # and currency beside its symbol, the minimum a record is minted from.
+        stated = {"description": f"The e2e custodian's event contract {value}",
+                  "currency": "USD"} if source else {}
         query = urllib.parse.urlencode({"name": name, "scheme": scheme, "value": value,
-                                        "source": source})
+                                        "source": source, **stated})
         ids = read(f"/resolve?{query}")
     subject, ranged, resolved = ids["contract"], ids["range"], ids["resolved"]
 
