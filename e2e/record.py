@@ -12,8 +12,8 @@ never committed; the plan's Q11):
     make e2e-recorded RECORDED=recordings/<the directory it printed>
 
 Each token's market, its book twice a second apart and its last trade are
-asked; a token Polymarket knows nothing by is kept as its answer. Standard library
-and the plugin only.
+asked; a token Polymarket knows nothing by is kept as its answer. Standard library,
+the SDK and the plugin only.
 """
 
 import sys
@@ -21,7 +21,8 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from polymarket.raw import RawStore
+from meridian.edge import RawStore
+
 from polymarket.venue import Polymarket, VenueError
 
 

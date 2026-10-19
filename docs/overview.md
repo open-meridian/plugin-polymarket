@@ -4,6 +4,8 @@ The Polymarket plugin puts Polymarket's public market data for its outcome
 tokens into your deployment's lake, where the plugins that watch and value
 your book read it. It needs no key: Polymarket's market data is public.
 
+It is a data plugin: its first-use path, its two pages and its Summary figures are every data plugin's, described once on [Using a data plugin](https://open-meridian.dev/how-to/using-a-data-plugin/). These sections cover what is Polymarket's own.
+
 ## Its role
 
 It holds one role, `data`: it records prices and quotes into the lake, with
@@ -63,6 +65,18 @@ final resolution alone: while a resolution is proposed or disputed,
 Polymarket's public data says so but does not say what was proposed.
 Outcomes are kept by default. Paying the holders of a position is not the
 plugin's: it records what Polymarket resolved.
+
+## Events
+
+For each outcome token it serves, the plugin also reports the Polymarket
+event its market belongs to: the event's markets, by their YES tokens, and
+what Polymarket states of them. In a negative-risk event exactly one market
+resolves YES, so its markets are reported mutually exclusive and covering
+every result. Where Polymarket may name more outcomes later (an "Other"
+market), they are reported mutually exclusive, but whether they cover every
+result is reported as not stated, never as no; an event without negative
+risk states neither. Your deployment keeps the group beside its instrument
+records and asks the platform to match it; a change makes a new version.
 
 ## What it never makes up
 

@@ -10,7 +10,8 @@ from pathlib import Path
 
 from meridian.v1 import sidecar_pb2
 
-from polymarket.declaration import CATALOGUE, DECLARATION, SAMPLE_DATA
+from polymarket.declaration import DECLARATION
+from polymarket.declared import CATALOGUE, SAMPLE_DATA
 
 
 def test_one_live_dataset_of_prices_and_quotes_kept_two_days() -> None:

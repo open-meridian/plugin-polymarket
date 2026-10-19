@@ -1,13 +1,14 @@
-"""Polymarket's side of the shared tests: this plugin's synthetic exchanges,
-named for what each of the data suite's cases asks a source to present.
+"""Polymarket's side of the data role's checks: this plugin's synthetic exchanges,
+named for what each of the checks asks a source to present.
 
-tests/test_suite.py, the same file in plugin-kalshi, runs the SDK's data
-suite unchanged against each plugin's own conversion; this module is the one
-place it learns which venue it is holding. Each answer comes through the
+tests/test_data_role.py runs the SDK's checks for an event-contract venue
+(`meridian.roles.data.testing.EventContractsChecks`) -- the data suite
+unchanged, the venue's work past the suite's cases, its outcomes, and the
+pages -- against this plugin's own conversion; this module is the one place
+they learn which venue they are holding. Each answer comes through the
 plugin's real client, raw records and reading (synthetic.py's transport over
-the exchanges this package carries, `src/polymarket/synthetic/`), with
-invented markets, token IDs and values; real recordings are never committed
-(the plan's Q11).
+the exchanges this package carries, `src/polymarket/synthetic/`), with invented
+markets and values; real recordings are never committed (the plan's Q11).
 """
 
 from __future__ import annotations
@@ -17,16 +18,15 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from polymarket import page, raw, synthetic
-from polymarket.contracts import ContractMap
+from meridian.edge import RawStore
+from meridian.roles.data.event_contracts import Event, Market
+
+from polymarket import page
 from polymarket.convert import PolymarketMarket
-from polymarket.dgm import Dgm, Standing
-from polymarket.market import Market
-from polymarket.raw import RawStore
 from polymarket.synthetic import Synthetic
 from polymarket.venue import Polymarket, RateLimiter
 
-__all__ = ["ContractMap", "Dgm", "Standing", "market", "page", "raw", "synthetic"]
+__all__ = ["page"]
 
 SYNTHETIC = Path(__file__).parent.parent / "src" / "polymarket" / "synthetic"
 
@@ -81,6 +81,21 @@ LATER: tuple[tuple[Path, str, int], ...] = ()
 DETERMINED: str | None = RESOLVED
 DISPUTED: tuple[str, tuple[Path, ...]] | None = None
 
+# ── Event groups (contract v26) ─────────────────────────────────────────────
+
+#: A negative-risk event (`negRisk`): the synthetic final, its three markets
+#: -- the base contract's among them -- mutually exclusive and exhaustive;
+#: and an augmented one (`negRiskAugmented`, an "Other" market marked
+#: `negRiskOther`), its named outcomes mutually exclusive, their
+#: exhaustiveness not stated. Each by its slug, and the condition of one of
+#: its markets, by which a contract served finds it.
+FINAL, MAYOR = "synthetic-final-winner", "synthetic-mayor"
+FINAL_CONDITION = "0x" + "5a" * 32
+MAYOR_CONDITION = "0x" + "6a" * 32
+#: The final's other two markets' YES tokens.
+RIVAL = "9" + "0" * 73 + "911"
+DRAW = "9" + "0" * 73 + "921"
+
 #: The suite's cases Polymarket's one dataset never presents, each with why:
 #: the dataset publishes prices and quotes now, per outcome token, in USDC.
 NOT_PRESENTED = {
@@ -123,6 +138,21 @@ def market(now_ns: int = NOW_NS, directory: Path | None = None) -> Market:
         sleep=_instant,
     )
     return PolymarketMarket(client, "synthetic")
+
+
+def event(condition: str) -> Event:
+    """One of Polymarket's synthetic events, found from one of its markets'
+    conditions as the plugin's conversion reads it."""
+    read = market().event(condition)  # type: ignore[attr-defined]
+    assert isinstance(read, Event), condition
+    return read
+
+
+#: The data suite's event groups (contract v26): `reports-an-event-group` on
+#: the negative-risk final, `reports-a-flag-the-venue-does-not-state` on the
+#: augmented mayoral race.
+EVENT = event(FINAL_CONDITION)
+EVENT_PLACEHOLDERS = event(MAYOR_CONDITION)
 
 
 def calls(market: Any) -> list[str]:

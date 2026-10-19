@@ -6,8 +6,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from meridian.roles.data.event_contracts import Contract
+
 from polymarket import convert
-from polymarket.market import Contract
 
 import venue_cases as venue
 
@@ -144,3 +145,38 @@ def test_a_token_is_read_with_its_outcome_and_when_its_answer_arrived() -> None:
     assert resolved.read_at_ns == venue.NOW_NS and not resolved.tradable
     active = market.contract(venue.BASE)
     assert active is not None and active.resolution is None
+
+
+# ── Contract v26: events ────────────────────────────────────────────────────
+
+
+def test_a_negative_risk_event_is_its_yes_tokens_exclusive_and_exhaustive() -> None:
+    final = venue.EVENT
+    assert final.ref == venue.FINAL and final.title == "Who will win the synthetic final?"
+    assert final.members == (venue.BASE, venue.RIVAL, venue.DRAW)
+    assert (final.mutually_exclusive, final.exhaustive) == (True, True)
+    assert final.raw_key and final.valid_from_ns == venue.NOW_NS
+
+
+def test_an_augmented_event_states_no_exhaustiveness() -> None:
+    mayor = venue.EVENT_PLACEHOLDERS
+    assert mayor.ref == venue.MAYOR and len(mayor.members) == 3
+    assert (mayor.mutually_exclusive, mayor.exhaustive) == (True, None)
+    marked = {"clobTokenIds": '["1", "2"]', "outcomes": '["Yes", "No"]', "negRiskOther": True}
+    other = {"negRisk": True, "slug": "e", "markets": [marked]}
+    said = convert.event(other, "k")
+    assert said is not None and (said.mutually_exclusive, said.exhaustive) == (True, None)
+
+
+def test_an_event_without_negative_risk_states_neither_flag() -> None:
+    plain = {"slug": "e", "negRisk": False, "series": [{"slug": "weekly"}], "markets": [
+        {"clobTokenIds": '["1", "2"]', "outcomes": '["Red", "Blue"]'}]}  # fmt: skip
+    said = convert.event(plain, "k")
+    assert said is not None and said.members == ("1",), "a market's first token without a Yes"
+    assert (said.mutually_exclusive, said.exhaustive, said.series) == (None, None, "weekly")
+    assert convert.event({"slug": "e", "markets": []}, "k") is None
+
+
+def test_a_condition_naming_no_event_is_none() -> None:
+    assert venue.market().event("0x" + "00" * 32) is None  # type: ignore[attr-defined]
+    assert convert.event_slug([{"events": []}]) == ""

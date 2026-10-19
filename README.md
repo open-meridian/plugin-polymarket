@@ -8,12 +8,14 @@ and offer with their sizes as a quote, every figure exactly as Polymarket
 stated it; and, from contract v23, each such token's outcome once Polymarket
 resolves its market. No key: Polymarket's market data is public.
 
-It is the second half of the lake's second batch, with
-[plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): the two
-pass one data suite unchanged between them (meridian-design
-`plans/the-lake-prices-the-book.md`, row 20).
+It is one of the lake's second batch, with
+[plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
+data suite and its checks for an event-contract venue unchanged against its own conversion
+(meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.31.0), never copied
+between them.
 
-**Status.** 0.5.0, built on open-meridian 0.27.0 (contract v23), holding the
+**Status.** 0.8.0, built on open-meridian 0.31.0 (contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
 role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
@@ -82,6 +84,25 @@ Two datasets, declared from code in its catalogue (`declaration.py`):
   themselves). One row key per token (`<token>:outcome`); a token past its
   market's end is read again each minute until its outcome is recorded.
   Kept by default; paying holders is servicing's, not the lake's.
+- **Events** (contract v26; meridian-design
+  `spec/the-contract-gaps-v26-and-v27-close.md`, A1 to A9; W3.29). For each
+  outcome token it serves, the plugin reads the Gamma event its market
+  belongs to (the condition's market, `/markets?condition_ids=`, for its
+  event's slug; then `/events/slug/{slug}`) and reports it
+  (`ReportEventGroup`, the SDK's `Feed.report_event`): its markets' YES
+  tokens, each named as the deployment's record, and the two flags as
+  Polymarket's negative risk states them. A negative-risk event (`negRisk`)
+  holds only when exactly one outcome resolves YES, so its markets are
+  mutually exclusive and exhaustive; an augmented one (`negRiskAugmented`,
+  or a market marked `negRiskOther`) adds outcomes named later and an
+  "Other", so its named outcomes are mutually exclusive and their
+  exhaustiveness not stated; an event without negative risk states
+  neither. Not stated is never false. The platform matches or mints the
+  group (`EVG-`), the deployment keeping its own `LCL-` group meanwhile.
+  Each event is read once its first token is served and again every ten
+  minutes, and reported again only where Polymarket states it otherwise,
+  which makes a new version; an event a member of which does not resolve is
+  held back and read again.
 - **The venue** is named as Coinbase's and Kraken's plugins name theirs, by
   its code (`symbol` `polymarket`, source `polymarket`: ISO 10383 has no MIC
   for it). The platform's venue master holds Polymarket (international)
@@ -107,7 +128,11 @@ case takes determined or final, ruled 2026-10-13) and
 `restates-a-disputed-outcome` (`about: disputed outcomes`) is not presented:
 Polymarket's public reads state a resolution only once it is final; a
 proposal's answer and a dispute are not stated, so no outcome is recorded
-before the final one to be restated as disputed. Every other case passes, a price in a stablecoin on the token's
+before the final one to be restated as disputed. Contract v26's are mapped:
+`reports-an-event-group` on a negative-risk event,
+`reports-a-flag-the-venue-does-not-state` on an augmented one, and
+`queries-the-lake-within-bounds` (the SDK's producer);
+`hears-and-reads-an-event-group` is answered by the SDK. Every other case passes, a price in a stablecoin on the token's
 own instrument and `reads-its-datasets-licences` among them: it reads which
 of its datasets a deployment admin has licensed, on start and each minute.
 
@@ -167,7 +192,7 @@ level. The plugin has no route that changes anything.
 Every answer Polymarket sends, an error as much as a book, is kept in the
 storage the deployment grants the plugin before anything is read from it,
 with the request that asked for it, its status and headers, and when it
-arrived (`raw.py`); a live answer is a line of its day's file, added only
+arrived (`meridian.edge.RawStore`); a live answer is a line of its day's file, added only
 when it changed, and a row read from an unchanged answer names the line and
 time it first arrived. Each row names its raw record (`RawRecordRef`). Kept in
 units of a UTC day under `responses/`, moved past the window through the SDK.
@@ -181,10 +206,15 @@ reader (`e2e/reader.py`, holding `custody` to name a custodian's records,
 `reporting` to read prices and `signal` to read quotes): the catalogue
 listed, nothing asked of Polymarket before a want, a custodian's outcome
 token read and named, its prices and quote recorded on Polymarket's own USDC
-instrument, read and heard, a market of three outcomes declined, a resolved
+instrument, read and heard, its event reported and read back as a group, a
+market of three outcomes declined, a resolved
 token's outcome recorded, kept, heard and read back, both read tools
 answering what the pages show, and `store lake` numbering each row with no
 holes and keeping the outcome's one (`e2e/run.py` says each step).
+On core v26's harness its stand-in platform mints a token paying 1 USD
+rather than Polymarket's 1 USDC, so the plugin declines it as another payout
+and the run proves what that harness can (`HARNESS_PAYS_USD`) until the
+stand-in mints the venue's own payout.
 
     docker run --rm --entrypoint python -v "$PWD/e2e":/e2e:ro \
         -v "$PWD/recordings":/recordings polymarket:local /e2e/record.py TOKEN ...
