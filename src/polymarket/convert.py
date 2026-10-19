@@ -41,6 +41,23 @@ Polymarket's vocabulary is read.
   resolution or of payout: the outcome is valid from when the answer first
   stating it arrived, and its payout time is left 0 (holders redeem their
   tokens themselves).
+- **The event** (contract v26; W3.29) is Gamma's, by its slug
+  (`/events/slug/{slug}`), found from the market of the contract's
+  condition (`/markets?condition_ids=`, its `events`): its slug its
+  reference, its `title` its words, its series the first of its `series`
+  by slug where it states one. Its members are its markets' YES tokens --
+  the token of the outcome `Yes`, else a market's first -- each a contract
+  of its own. Polymarket states its grouping through negative risk
+  (docs.polymarket.com, "Negative risk"): an event with `negRisk` lets a NO
+  in one market convert into a YES in each of the others, which holds only
+  when exactly one outcome resolves YES, so its markets are mutually
+  exclusive and exhaustive. An augmented negative-risk event -- its
+  `negRiskAugmented`, or a market of it marked `negRiskOther` -- adds
+  placeholder outcomes named later and an "Other" whose meaning changes, so
+  its named outcomes are mutually exclusive but their exhaustiveness is not
+  stated (never false). An event without negative risk states neither. An
+  event unchanged keeps the time its answer first arrived, which is when
+  the grouping is reported valid from.
 - **The last trade** is `/last-trade-price`'s, the token's own price and the
   side that traded, which Polymarket states with no time: valid from when
   its answer first arrived. An answer naming no side is no trade (Polymarket
@@ -59,7 +76,15 @@ from decimal import Decimal
 from typing import Any
 
 from meridian.roles.data import NANOS_PER_SECOND, Endpoint, Limits, Session, Unread, number
-from meridian.roles.data.event_contracts import FINAL, Cash, Contract, Resolution, Tick, Top
+from meridian.roles.data.event_contracts import (
+    FINAL,
+    Cash,
+    Contract,
+    Event,
+    Resolution,
+    Tick,
+    Top,
+)
 
 from .venue import BURST, CLOB, GAMMA, NOT_FOUND, RATE_PER_SECOND, Polymarket, VenueError
 
@@ -179,6 +204,59 @@ def contract(
     )
 
 
+def _yes_token(body: Mapping[str, Any]) -> str:
+    """A market's YES token: its outcome `Yes`'s, else its first."""
+    tokens, outcomes = _listed(body.get("clobTokenIds")), _listed(body.get("outcomes"))
+    if not tokens:
+        return ""
+    if "Yes" in outcomes and outcomes.index("Yes") < len(tokens):
+        return tokens[outcomes.index("Yes")]
+    return tokens[0]
+
+
+def event(body: Mapping[str, Any], raw_key: str, received_ns: int = 0) -> Event | None:
+    """One Gamma event, from `/events/slug/{slug}`: its markets' YES tokens,
+    the two flags as its negative risk states them. None where it names no
+    slug or no market."""
+    slug = str(body.get("slug") or "")
+    markets = body.get("markets")
+    listed = markets if isinstance(markets, Sequence) and not isinstance(markets, str) else []
+    held = [m for m in listed if isinstance(m, Mapping)]
+    members = tuple(token for token in (_yes_token(m) for m in held) if token)
+    if not slug or not members:
+        return None
+    augmented = body.get("negRiskAugmented") is True or any(
+        m.get("negRiskOther") is True for m in held
+    )
+    exclusive: bool | None = True if body.get("negRisk") is True else None
+    exhaustive: bool | None = None if augmented or exclusive is None else True
+    series = body.get("series")
+    first = (
+        series[0] if isinstance(series, Sequence) and series and not isinstance(series, str) else {}
+    )
+    return Event(
+        ref=slug,
+        title=str(body.get("title") or ""),
+        members=members,
+        mutually_exclusive=exclusive,
+        exhaustive=exhaustive,
+        series=str(first.get("slug") or "") if isinstance(first, Mapping) else "",
+        valid_from_ns=received_ns,
+        raw_key=raw_key,
+    )
+
+
+def event_slug(markets: object) -> str:
+    """The slug of the event a Gamma market answer's market belongs to;
+    empty where it names none."""
+    for body in markets if isinstance(markets, list) else []:
+        events = body.get("events") if isinstance(body, Mapping) else None
+        for each in events if isinstance(events, list) else []:
+            if isinstance(each, Mapping) and each.get("slug"):
+                return str(each["slug"])
+    return ""
+
+
 def _side(levels: object, side: str, best: Any, unread: list[Unread]) -> tuple[Any, Any]:
     """The best of a side's levels, `{price, size}` each, by `best` (max for
     bids, min for offers), and its size; a level that does not read kept as
@@ -248,6 +326,9 @@ class PolymarketMarket:
 
     def __init__(self, client: Polymarket, mode: str = "live") -> None:
         self.client = client
+        #: Each condition's event slug, once read: a condition's event does
+        #: not change.
+        self._slugs: dict[str, str] = {}
         live = mode == "live"
         elsewhere = f"{mode}: no call leaves the deployment"
         self.session = Session(
@@ -278,6 +359,27 @@ class PolymarketMarket:
             ):
                 return read
         return None
+
+    def event(self, ref: str) -> Event | None:
+        """The event a contract belongs to, by its reference (the contract's
+        `market`, its condition ID): the condition's market read once for
+        its event's slug, then the event; None where Polymarket names
+        none."""
+        slug = self._slugs.get(ref)
+        try:
+            if slug is None:
+                slug = event_slug(self.client.condition(ref).value)
+                if not slug:
+                    return None
+                self._slugs[ref] = slug
+            fetched = self.client.event(slug)
+        except VenueError as refused:
+            if refused.status == NOT_FOUND:
+                return None
+            raise
+        if not isinstance(fetched.value, Mapping):
+            return None
+        return event(fetched.value, fetched.raw_key, fetched.received_at_ns)
 
     def last(self, of: Contract) -> Tick:
         fetched = self.client.last_trade(of.code)

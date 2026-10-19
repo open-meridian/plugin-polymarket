@@ -29,6 +29,8 @@ from .venue import Response
 
 _HEADERS = {"cache-control": "no-store"}
 _FILES = ("markets", "book", "last-trade")
+#: Kept only where a directory states events (contract v26).
+_OPTIONAL = ("events",)
 
 
 def _found(body: Any) -> Response:
@@ -47,11 +49,19 @@ def _asked(url: str) -> tuple[str, str] | None:
     query = dict(urllib.parse.parse_qsl(split.query))
     if split.path.rstrip("/") == "/markets" and query.get("clob_token_ids"):
         return "markets", query["clob_token_ids"]
+    if split.path.rstrip("/") == "/markets" and query.get("condition_ids"):
+        return "condition", query["condition_ids"]
+    if split.path.startswith("/events/slug/"):
+        return "events", urllib.parse.unquote(split.path[len("/events/slug/") :].rstrip("/"))
     if split.path.rstrip("/") == "/book" and query.get("token_id"):
         return "book", query["token_id"]
     if split.path.rstrip("/") == "/last-trade-price" and query.get("token_id"):
         return "last-trade", query["token_id"]
     return None
+
+
+def _missing() -> Response:
+    return Response(404, dict(_HEADERS), b'{"type":"not found error","error":"not found"}')
 
 
 def _never_traded() -> Response:
@@ -62,19 +72,38 @@ def _never_traded() -> Response:
 class Synthetic:
     """Answers from a directory of synthetic exchanges: `markets.json`, Gamma's
     answer per token, `book.json`, the order book's per token, and
-    `last-trade.json`, its last trade's per token."""
+    `last-trade.json`, its last trade's per token; and `events.json`,
+    Gamma's answer per event slug, where it has one. A condition's market
+    is the one `markets.json` holds by that condition ID."""
 
     def __init__(self, directory: Path | None = None) -> None:
         root = directory or Path(str(resources.files("polymarket") / "synthetic"))
         self.held: dict[str, dict[str, Any]] = {
             name: json.loads((root / f"{name}.json").read_text(encoding="utf-8")) for name in _FILES
         }
+        for name in _OPTIONAL:
+            path = root / f"{name}.json"
+            self.held[name] = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
 
     def __call__(self, url: str, headers: Mapping[str, str]) -> Response:
         asked = _asked(url)
         if asked is None:
             return _no_book()
         call, token = asked
+        if call == "condition":
+            return _found(
+                next(
+                    (
+                        m
+                        for m in self.held["markets"].values()
+                        if m and m[0].get("conditionId") == token
+                    ),
+                    [],
+                )
+            )
+        if call == "events":
+            event = self.held["events"].get(token)
+            return _found(event) if event is not None else _missing()
         body = self.held[call].get(token)
         if call == "markets":
             return _found(body if body is not None else [])
@@ -117,7 +146,9 @@ class Recorded:
         asked = _asked(url)
         held = self.latest.get(asked) if asked else None
         if held is None:
-            if asked and asked[0] == "markets":
+            if asked and asked[0] in ("markets", "condition"):
                 return _found([])
+            if asked and asked[0] == "events":
+                return _missing()
             return _never_traded() if asked and asked[0] == "last-trade" else _no_book()
         return Response(held[1], dict(_HEADERS), held[2].encode("utf-8"))

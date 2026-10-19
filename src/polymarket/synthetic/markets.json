@@ -253,7 +253,7 @@
    "liquidity": "152000.25",
    "liquidityNum": 152000.25,
    "marketMakerAddress": "",
-   "negRisk": false,
+   "negRisk": true,
    "orderMinSize": 5,
    "orderPriceMinTickSize": 0.01,
    "outcomePrices": "[\"0.44\", \"0.56\"]",
@@ -266,7 +266,17 @@
    "startDateIso": "2026-09-01",
    "updatedAt": "2026-10-10T11:59:00.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800001",
+     "slug": "synthetic-final-winner",
+     "title": "Who will win the synthetic final?",
+     "ticker": "synthetic-final-winner",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "The synthetic team"
   }
  ],
  "60000000000000000000000000000000000000000000000000000000000000000000000000067": [
@@ -358,7 +368,7 @@
    "liquidity": "152000.25",
    "liquidityNum": 152000.25,
    "marketMakerAddress": "",
-   "negRisk": false,
+   "negRisk": true,
    "orderMinSize": 5,
    "orderPriceMinTickSize": 0.01,
    "outcomePrices": "[\"0.44\", \"0.56\"]",
@@ -371,7 +381,17 @@
    "startDateIso": "2026-09-01",
    "updatedAt": "2026-10-10T11:59:00.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800001",
+     "slug": "synthetic-final-winner",
+     "title": "Who will win the synthetic final?",
+     "ticker": "synthetic-final-winner",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "The synthetic team"
   }
  ],
  "80000000000000000000000000000000000000000000000000000000000000000000000000081": [
@@ -442,6 +462,438 @@
    "updatedAt": "2026-10-09T18:02:07.000000Z",
    "volume": "820311.5",
    "volumeNum": 820311.5
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000911": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000911\", \"90000000000000000000000000000000000000000000000000000000000000000000000000912\"]",
+   "closed": false,
+   "conditionId": "0x5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900011",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.36\", \"0.64\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will the synthetic rival win the synthetic final?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-the-synthetic-rival-win-the-synthetic-final",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800001",
+     "slug": "synthetic-final-winner",
+     "title": "Who will win the synthetic final?",
+     "ticker": "synthetic-final-winner",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "The synthetic rival"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000912": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000911\", \"90000000000000000000000000000000000000000000000000000000000000000000000000912\"]",
+   "closed": false,
+   "conditionId": "0x5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900011",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.36\", \"0.64\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will the synthetic rival win the synthetic final?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-the-synthetic-rival-win-the-synthetic-final",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800001",
+     "slug": "synthetic-final-winner",
+     "title": "Who will win the synthetic final?",
+     "ticker": "synthetic-final-winner",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "The synthetic rival"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000921": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000921\", \"90000000000000000000000000000000000000000000000000000000000000000000000000922\"]",
+   "closed": false,
+   "conditionId": "0x5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900012",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.20\", \"0.8\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will the synthetic final end in a synthetic draw?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-the-synthetic-final-end-in-a-synthetic-draw",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800001",
+     "slug": "synthetic-final-winner",
+     "title": "Who will win the synthetic final?",
+     "ticker": "synthetic-final-winner",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "A synthetic draw"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000922": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000921\", \"90000000000000000000000000000000000000000000000000000000000000000000000000922\"]",
+   "closed": false,
+   "conditionId": "0x5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900012",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.20\", \"0.8\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will the synthetic final end in a synthetic draw?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-the-synthetic-final-end-in-a-synthetic-draw",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800001",
+     "slug": "synthetic-final-winner",
+     "title": "Who will win the synthetic final?",
+     "ticker": "synthetic-final-winner",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "A synthetic draw"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000931": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000931\", \"90000000000000000000000000000000000000000000000000000000000000000000000000932\"]",
+   "closed": false,
+   "conditionId": "0x6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900021",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.55\", \"0.45\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will synthetic candidate A be the synthetic mayor?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-synthetic-candidate-a-be-the-synthetic-mayor",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800002",
+     "slug": "synthetic-mayor",
+     "title": "Who will be the synthetic mayor?",
+     "ticker": "synthetic-mayor",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "Synthetic candidate A"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000932": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000931\", \"90000000000000000000000000000000000000000000000000000000000000000000000000932\"]",
+   "closed": false,
+   "conditionId": "0x6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900021",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.55\", \"0.45\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will synthetic candidate A be the synthetic mayor?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-synthetic-candidate-a-be-the-synthetic-mayor",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800002",
+     "slug": "synthetic-mayor",
+     "title": "Who will be the synthetic mayor?",
+     "ticker": "synthetic-mayor",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "Synthetic candidate A"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000941": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000941\", \"90000000000000000000000000000000000000000000000000000000000000000000000000942\"]",
+   "closed": false,
+   "conditionId": "0x6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900022",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.40\", \"0.6\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will synthetic candidate B be the synthetic mayor?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-synthetic-candidate-b-be-the-synthetic-mayor",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800002",
+     "slug": "synthetic-mayor",
+     "title": "Who will be the synthetic mayor?",
+     "ticker": "synthetic-mayor",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "Synthetic candidate B"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000942": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000941\", \"90000000000000000000000000000000000000000000000000000000000000000000000000942\"]",
+   "closed": false,
+   "conditionId": "0x6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900022",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.40\", \"0.6\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will synthetic candidate B be the synthetic mayor?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-synthetic-candidate-b-be-the-synthetic-mayor",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800002",
+     "slug": "synthetic-mayor",
+     "title": "Who will be the synthetic mayor?",
+     "ticker": "synthetic-mayor",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "Synthetic candidate B"
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000951": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000951\", \"90000000000000000000000000000000000000000000000000000000000000000000000000952\"]",
+   "closed": false,
+   "conditionId": "0x6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900023",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.05\", \"0.95\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will another synthetic candidate be the synthetic mayor?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-another-synthetic-candidate-be-the-synthetic-mayor",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800002",
+     "slug": "synthetic-mayor",
+     "title": "Who will be the synthetic mayor?",
+     "ticker": "synthetic-mayor",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "Other",
+   "negRiskOther": true
+  }
+ ],
+ "90000000000000000000000000000000000000000000000000000000000000000000000000952": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"90000000000000000000000000000000000000000000000000000000000000000000000000951\", \"90000000000000000000000000000000000000000000000000000000000000000000000000952\"]",
+   "closed": false,
+   "conditionId": "0x6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-12-31T23:59:00Z",
+   "endDateIso": "2026-12-31",
+   "id": "900023",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": true,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.05\", \"0.95\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will another synthetic candidate be the synthetic mayor?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-another-synthetic-candidate-be-the-synthetic-mayor",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5,
+   "events": [
+    {
+     "id": "800002",
+     "slug": "synthetic-mayor",
+     "title": "Who will be the synthetic mayor?",
+     "ticker": "synthetic-mayor",
+     "negRisk": true
+    }
+   ],
+   "groupItemTitle": "Other",
+   "negRiskOther": true
   }
  ]
 }

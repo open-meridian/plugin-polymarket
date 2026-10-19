@@ -6,6 +6,7 @@ tests/venue_cases.py names Polymarket's synthetic exchange for each."""
 
 from __future__ import annotations
 
+from meridian.plugin.v1 import operations_pb2 as ops
 from meridian.roles.data.testing import EventContractsChecks, event_contract_producers
 from meridian.suites import run
 
@@ -14,6 +15,27 @@ import venue_cases
 
 class TestEventContracts(EventContractsChecks):
     venue = venue_cases
+
+    async def test_a_record_already_complete_is_not_resolved_again(self) -> None:
+        """The SDK's check, its record complete as 0.31.0 joins one: open-
+        meridian 0.31.0's own holds the record with the venue's symbol alone,
+        but a contract is sent with its ticker beside it, its source the
+        venue master's ID for a venue with no MIC (ruling 312), so a record
+        lacking the ticker is not complete. Gone once the SDK's check holds
+        the ticker too (0.31.1)."""
+        v, lake = self.venue, self.lake()
+        feed = self.feed(lake)
+        contract = await feed.contract(v.BASE)
+        assert contract is not None
+        ticker = ops.Identifier(scheme="ticker", value=contract.code, source=await feed.venue_id())
+        subject = lake.instruments.hold(
+            "INS-DONE", *feed.identifiers(contract), ticker,
+            asset_class=ops.ASSET_CLASS_EVENT_CONTRACT,
+            instrument_type=ops.INSTRUMENT_TYPE_BINARY_EVENT_CONTRACT,
+        )  # fmt: skip
+        await feed.record_live([subject], data_type="meridian.v1.Price")
+        resolved = [r for r in lake.on("ResolveIdentifier") if r.stated_instrument_type]
+        assert not resolved and lake.rows()
 
 
 def test_the_data_suite_passes_unchanged() -> None:

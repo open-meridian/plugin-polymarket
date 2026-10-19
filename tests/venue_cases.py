@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from meridian.edge import RawStore
-from meridian.roles.data.event_contracts import Market
+from meridian.roles.data.event_contracts import Event, Market
 
 from polymarket import page
 from polymarket.convert import PolymarketMarket
@@ -81,6 +81,21 @@ LATER: tuple[tuple[Path, str, int], ...] = ()
 DETERMINED: str | None = RESOLVED
 DISPUTED: tuple[str, tuple[Path, ...]] | None = None
 
+# ── Event groups (contract v26) ─────────────────────────────────────────────
+
+#: A negative-risk event (`negRisk`): the synthetic final, its three markets
+#: -- the base contract's among them -- mutually exclusive and exhaustive;
+#: and an augmented one (`negRiskAugmented`, an "Other" market marked
+#: `negRiskOther`), its named outcomes mutually exclusive, their
+#: exhaustiveness not stated. Each by its slug, and the condition of one of
+#: its markets, by which a contract served finds it.
+FINAL, MAYOR = "synthetic-final-winner", "synthetic-mayor"
+FINAL_CONDITION = "0x" + "5a" * 32
+MAYOR_CONDITION = "0x" + "6a" * 32
+#: The final's other two markets' YES tokens.
+RIVAL = "9" + "0" * 73 + "911"
+DRAW = "9" + "0" * 73 + "921"
+
 #: The suite's cases Polymarket's one dataset never presents, each with why:
 #: the dataset publishes prices and quotes now, per outcome token, in USDC.
 NOT_PRESENTED = {
@@ -123,6 +138,21 @@ def market(now_ns: int = NOW_NS, directory: Path | None = None) -> Market:
         sleep=_instant,
     )
     return PolymarketMarket(client, "synthetic")
+
+
+def event(condition: str) -> Event:
+    """One of Polymarket's synthetic events, found from one of its markets'
+    conditions as the plugin's conversion reads it."""
+    read = market().event(condition)  # type: ignore[attr-defined]
+    assert isinstance(read, Event), condition
+    return read
+
+
+#: The data suite's event groups (contract v26): `reports-an-event-group` on
+#: the negative-risk final, `reports-a-flag-the-venue-does-not-state` on the
+#: augmented mayoral race.
+EVENT = event(FINAL_CONDITION)
+EVENT_PLACEHOLDERS = event(MAYOR_CONDITION)
 
 
 def calls(market: Any) -> list[str]:

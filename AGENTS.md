@@ -25,11 +25,12 @@ it.
   answers instead of Polymarket with sample data: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
 - **What every data plugin of an event-contract venue does is the SDK's**
-  (open-meridian 0.30.0; nothing is copied between plugins): naming each
+  (open-meridian 0.31.0; nothing is copied between plugins): naming each
   subject, resolving the cash and the venue, recording prices, quotes and
-  outcomes, answering wants and keeping them current are
+  outcomes, answering wants and keeping them current, and reporting an
+  event's group (contract v26) are
   `meridian.roles.data.event_contracts.Feed`, over the venue's values
-  (`event_contracts.Cash`, `Contract`, `Resolution`, `Tick`, `Top`) and its
+  (`event_contracts.Cash`, `Contract`, `Resolution`, `Tick`, `Top`, `Event`) and its
   contract map (`event_contracts.ContractMap`, kept in storage); raw records
   are `meridian.edge.RawStore`; the pages are the SDK's for an
   event-contract venue (`page.py` builds them with

@@ -66,6 +66,18 @@ Polymarket's public data says so but does not say what was proposed.
 Outcomes are kept by default. Paying the holders of a position is not the
 plugin's: it records what Polymarket resolved.
 
+## Events
+
+For each outcome token it serves, the plugin also reports the Polymarket
+event its market belongs to: the event's markets, by their YES tokens, and
+what Polymarket states of them. In a negative-risk event exactly one market
+resolves YES, so its markets are reported mutually exclusive and covering
+every result. Where Polymarket may name more outcomes later (an "Other"
+market), they are reported mutually exclusive, but whether they cover every
+result is reported as not stated, never as no; an event without negative
+risk states neither. Your deployment keeps the group beside its instrument
+records and asks the platform to match it; a change makes a new version.
+
 ## What it never makes up
 
 - A figure is recorded exactly as Polymarket stated it, never rounded and

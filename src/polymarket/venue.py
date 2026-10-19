@@ -3,7 +3,10 @@
 Public reads, no key: Polymarket's market data API (Gamma) at
 gamma-api.polymarket.com, `/markets?clob_token_ids=` (the market an outcome
 token belongs to, asked only for a subject the lake wants, and asked again
-for its outcome once it is past its end), and its order
+for its outcome once it is past its end) -- from 0.8.0 also
+`/markets?condition_ids=` (the market a contract served belongs to, for
+its event) and `/events/slug/{slug}` (that event, with its markets, for the
+event's grouping) -- and its order
 book's (the CLOB) at clob.polymarket.com, `/book?token_id=` (the token's
 resting bids and offers) and `/last-trade-price?token_id=` (its last
 trade's price and side). Nothing here holds a
@@ -213,6 +216,22 @@ class Polymarket:
         its outcome, kept as a line of the day's live responses, added only
         when it changed."""
         return self._get("market", token, GAMMA, "/markets", {"clob_token_ids": token}, live=live)
+
+    def condition(self, condition_id: str) -> Fetched:
+        """The market of a condition, by its ID (contract v26: the event it
+        belongs to): a list, empty where Polymarket knows none."""
+        return self._get(
+            "condition", condition_id, GAMMA, "/markets", {"condition_ids": condition_id}
+        )
+
+    def event(self, slug: str) -> Fetched:
+        """An event, by its slug, with its markets (contract v26: its
+        grouping); kept as a line of the day's live responses, added only
+        when it changed, so an event unchanged keeps the time it first
+        arrived."""
+        return self._get(
+            "event", slug, GAMMA, f"/events/slug/{urllib.parse.quote(slug)}", live=True
+        )
 
     def book(self, token: str) -> Fetched:
         """A token's resting bids and offers."""

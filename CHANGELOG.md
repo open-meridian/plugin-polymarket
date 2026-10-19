@@ -1,6 +1,43 @@
 # Changelog
 
-## 0.7.0 (unreleased)
+## 0.8.0
+
+On open-meridian 0.31.0, contract v26: Polymarket's events reported as
+groups (meridian-design `spec/the-contract-gaps-v26-and-v27-close.md`, A1
+to A9; W3.29), on core v26's harness. One version for v26 (open question
+234): it carries 0.6.0 and 0.7.0, which never merged on their own. The
+international Polymarket, as before; Polymarket US is plugin-polymarket-us.
+
+- **Event groups.** For each token it serves, the plugin reads the Gamma
+  event its market belongs to (`/markets?condition_ids=` for the event's
+  slug, read once per condition; `/events/slug/{slug}`) and reports it
+  through the SDK's `Feed.report_event`: its markets' YES tokens, and the
+  flags as negative risk states them -- `negRisk` mutually exclusive and
+  exhaustive; augmented (`negRiskAugmented`, or a market marked
+  `negRiskOther`) mutually exclusive, exhaustiveness not stated; neither
+  stated without negative risk. Each event is read once its first token is
+  served and every ten minutes after, and reported again only where
+  Polymarket states it otherwise; an event a member of which does not
+  resolve is held back and read again (`__main__.Events`).
+- **The data suite's v26 cases mapped**: `reports-an-event-group` on a
+  synthetic negative-risk event (the final, the base contract's market
+  among its three), `reports-a-flag-the-venue-does-not-state` on an
+  augmented one, `queries-the-lake-within-bounds` the SDK's producer
+  (`tests/venue_cases.py`'s `EVENT` and `EVENT_PLACEHOLDERS`). Polymarket's
+  markets state no range bounds, so none are read.
+- **e2e on core v26's harness** (199): the stand-in platform holds
+  Polymarket by its code and mints its tokens by that venue's ID; step 5a
+  reads the token's event group back.
+- **Tests**: `tests/test_events.py`, the conversion's events; the SDK check
+  `test_a_record_already_complete_is_not_resolved_again` held to ruling
+  312's ticker until open-meridian 0.31.1 corrects its own. e2e.yaml keeps
+  the harness's logs on a failure (`include-hidden-files`).
+- **The pins**: open-meridian 0.31.0 and plugin-python:0.31.0 by tag and
+  digest (`sha256:e041f83c...24cf5d2`); core v26's runtime and harness
+  (17a13a2, merged as 648e25f) by digest; `meridian` 0.1.49, the first CLI
+  carrying contract v26's suites.
+
+## 0.7.0 (not released on its own: carried by 0.8.0)
 
 On open-meridian 0.30.0, contract 25 unchanged: the data role's work is
 the SDK's (sdk-contract/the-sdk-carries-each-roles-common-logic; ruling
