@@ -211,6 +211,10 @@ market of three outcomes declined, a resolved
 token's outcome recorded, kept, heard and read back, both read tools
 answering what the pages show, and `store lake` numbering each row with no
 holes and keeping the outcome's one (`e2e/run.py` says each step).
+On core v26's harness its stand-in platform mints a token paying 1 USD
+rather than Polymarket's 1 USDC, so the plugin declines it as another payout
+and the run proves what that harness can (`HARNESS_PAYS_USD`) until the
+stand-in mints the venue's own payout.
 
     docker run --rm --entrypoint python -v "$PWD/e2e":/e2e:ro \
         -v "$PWD/recordings":/recordings polymarket:local /e2e/record.py TOKEN ...

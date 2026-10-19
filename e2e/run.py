@@ -87,6 +87,14 @@ OUTCOME = {"determination": "OUTCOME_DETERMINATION_PAYS", "stage": "OUTCOME_STAG
            "amount": "1", "as_reported": "polymarket:outcomePrices=1", "settled_at_ns": 0,
            "source_times": 0, "currency_code": ""}
 STATED = {"PRICE_KIND_LAST": "0.440", "PRICE_KIND_BID": "0.43", "PRICE_KIND_ASK": "0.45"}
+#: Core v26's stand-in platform mints every event contract paying one unit
+#: of the currency the request offers, USD by default (core 17a13a2,
+#: deploy/harness/platform.py, `event_contract()`), where a Polymarket token
+#: pays one USDC on Polymarket's own instrument: the plugin rightly declines
+#: a record stating another payout, so steps 4 to 7 wait for the harness
+#: (queued as a v27 core harness fix) and the run proves what it can
+#: (`pending`). Set False once the stand-in mints a token paying the venue's.
+HARNESS_PAYS_USD = True
 #: Polymarket in the stand-in platform's venue master (contract v26), and
 #: the synthetic token's negative-risk event.
 POLYMARKET = "VEN-01JAE000000000000000POLYM"
@@ -237,6 +245,9 @@ def run():
     runner("licence", OUTCOMES, "kept=true", "retention_days=0", "display=true",
            "personal_use=false", "note=Kept, as the default says, for the e2e's reader.")
     runner("entitle", "--instance", "reader", OUTCOMES, "note=The e2e's reader.")
+
+    if HARNESS_PAYS_USD:
+        return pending(started, named, subject, ranged)
 
     # 4. Prices wanted, recorded, read and heard.
     read(f"/follow?subject={subject}&subject={resolved}")
@@ -406,6 +417,65 @@ def run():
           "read_connection and "
           "read_datasets answering what the pages show, the dataset licensed, the payout one USDC; raw responses "
           "in storage; and `store lake` numbering each row with no holes, and the wants")
+
+
+def pending(started, named, subject, ranged):
+    """What core v26's harness can prove while its stand-in mints a token
+    paying 1 USD (HARNESS_PAYS_USD): the venue held, the platform's record
+    minted by the token's ID, the plugin declining it as another payout --
+    never serving a wrong one -- and the market of three outcomes declined
+    as not covered; no row recorded, no miss."""
+    # 4p. Wanted: the record minted by the token's ID, declined for its payout.
+    read(f"/follow?subject={subject}")
+    read(f"/prices?subject={subject}&dataset={DATASET}")
+
+    def declined():
+        served = call(named["read_datasets"], {}, "read", "unchanged")["data"]
+        why = [n for n in served["not_served"] if n["why"] == "its record states another payout"]
+        return served if why and served["payouts_differ"] >= 1 else None
+    served = until(90, declined, "step 4p, the token was not declined for its payout")
+    must(served["contracts_mapped"] == 0 and served["subjects_named"] == 0,
+         f"step 4p, nothing served on a record stating another payout: {served}")
+    record = call("dashboard__read_instrument", {"instrument_id": subject}, "read",
+                  "unchanged")["data"]
+    log(f"the token's record, after the want: {json.dumps(record)}")
+    held = {(i["scheme"], i["source"], i["value"]) for i in record["identifiers"]}
+    must(subject.startswith("INS-") and ("ticker", POLYMARKET, CONTRACT) in held
+         and record["binary_event_contract"]["payout"]["currency_code"] == "USD",
+         f"step 4p, the stand-in's record minted by the token's ID, paying USD: {record}")
+    must(not read("/heard")["heard"], "step 4p, no row heard")
+
+    # 6. Declined: a market of three outcomes is not binary.
+    read(f"/prices?subject={ranged}&dataset={DATASET}")
+
+    # 7p. The connection: the venue's calls made, its venue as resolved so far
+    # (asked when a token is joined or recorded, which a declined one is not).
+    connection = call(named["read_connection"], {}, "read", "unchanged")["data"]
+    must(connection["calls"] > 0 and connection["venue_id"] in ("", POLYMARKET),
+         f"step 7p, read_connection: {connection}")
+
+    # 8p. The lake's record: the range declined, no row, no miss.
+    names = {subject: "CONTRACT", ranged: "RANGE"}
+
+    def lake():
+        lines = compose("run", "--rm", "-T", "store", "lake").stdout.split("\n")
+        for instrument_id, name in names.items():
+            lines = [line.replace(instrument_id, name) for line in lines]
+        declined = any(line.startswith(f"want|{DATASET}|declined|RANGE|") for line in lines)
+        return lines if declined else None
+    lines = until(240, lake, "step 8p, the range was not declined")
+    log("store lake:\n" + "\n".join(lines))
+    must(not any(line.startswith("row|") for line in lines)
+         and not any(line.startswith(f"miss|{VENUE}|") for line in lines),
+         f"step 8p, no row and no miss: {lines}")
+    print(f"e2e OK (harness-limited) in {int(time.time() - started)}s: on core's plugin "
+          "harness, the datasets listed; nothing asked of Polymarket and no record minted "
+          "before a want; a custodian's token, stated by its own symbol and the token's ID, "
+          "minted by the stand-in platform paying 1 USD and declined as another payout than "
+          "Polymarket's 1 USDC, nothing recorded; the market of three outcomes declined as "
+          "not covered; no row and no miss. Prices, quotes, the "
+          "event group and the outcome wait for the stand-in to mint a token paying the "
+          "venue's own USDC (HARNESS_PAYS_USD)")
 
 
 def diagnose():

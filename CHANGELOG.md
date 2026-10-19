@@ -25,9 +25,18 @@ international Polymarket, as before; Polymarket US is plugin-polymarket-us.
   augmented one, `queries-the-lake-within-bounds` the SDK's producer
   (`tests/venue_cases.py`'s `EVENT` and `EVENT_PLACEHOLDERS`). Polymarket's
   markets state no range bounds, so none are read.
-- **e2e on core v26's harness** (199): the stand-in platform holds
-  Polymarket by its code and mints its tokens by that venue's ID; step 5a
-  reads the token's event group back.
+- **e2e on core v26's harness** (199): the custodian states the token's ID
+  under Polymarket's `VEN-` ID beside its own symbol, so the stand-in
+  platform mints the platform's record by it. The stand-in mints every
+  event contract paying 1 USD (core 17a13a2, `deploy/harness/platform.py`
+  `event_contract()`), where a token pays 1 USDC on Polymarket's own
+  instrument, so the plugin declines it as another payout, never serving a
+  wrong one: the run proves what the harness can (the record minted by the
+  token's ID and declined for its payout, the market of three outcomes
+  declined, no row, no miss), and its price, quote, event-group (5a) and
+  outcome steps wait behind `HARNESS_PAYS_USD` for the harness fix queued
+  for v27. On a failure the run logs the instruments, the plugin's
+  Datasets record and the lake's record.
 - **Tests**: `tests/test_events.py`, the conversion's events; the SDK check
   `test_a_record_already_complete_is_not_resolved_again` held to ruling
   312's ticker until open-meridian 0.31.1 corrects its own. e2e.yaml keeps
