@@ -2,16 +2,19 @@
 `meridian.roles.data.event_contracts`): the one place
 Polymarket's vocabulary is read.
 
-- **The cash** is Polymarket's own USDC instrument, known by its code with
-  `polymarket` as source: the venue states its prices and payouts in USDC
-  without naming, for its data, which of the issuer's contracts it is, so it
-  is the venue's own instrument (the product owner's ruling of 2026-10-03 on
-  a venue's token), never the dollar and never a contract's CAIP-19. A
-  stablecoin is a token, never its currency.
+- **The cash** is pUSD, Polymarket's collateral (ruling 550, 2026-10-24):
+  the token Polymarket documents as "the collateral token used for all
+  trading" (docs.polymarket.com, "pUSD"), an ERC-20 on Polygon backed by
+  USDC, known by its CAIP-19 (`eip155:137/erc20:0xc011...2dfb`, its
+  contract as Polymarket's "Contracts" page lists it), which the platform's
+  master holds as pUSD's record. Its code is `PUSD`, as the master names it
+  at source `polymarket`. It replaces 0.8.0's "USDC" known by its code
+  alone (the ruling of 2026-10-03), which no master record matched. A
+  stablecoin is a token, never its currency: never the dollar.
 - **Two tokens, two contracts** (step 5's ruling of 2026-09-30). A Polymarket
   market has two outcomes, each traded as its own token (`clobTokenIds`), and
   each token is a binary event contract of its own, priced on its own book:
-  it pays one USDC if its outcome is the market's result and nothing if it
+  it pays one pUSD if its outcome is the market's result and nothing if it
   is not -- the Conditional Tokens design Polymarket documents, so its
   payout is one. A contract is known by its token's ID; its words are the
   market's `question` and the token's outcome; trading closes at the
@@ -20,12 +23,12 @@ Polymarket's vocabulary is read.
   is not taken as binary.
 - **The book** is the token's own: its best bid the highest of `bids`, its
   best offer the lowest of `asks`, each with its size in tokens, prices in
-  USDC as text; stated at the book's `timestamp` (milliseconds), its `hash`
+  pUSD as text; stated at the book's `timestamp` (milliseconds), its `hash`
   its identity.
 - **Its outcome** (contract v23; the lake plan's "vL1c") is read from the
   same Gamma answer, and only once the market is resolved: its
   `umaResolutionStatus` `resolved` and the market `closed`, when its
-  `outcomePrices` state what each token settles at -- one USDC, nothing, or
+  `outcomePrices` state what each token settles at -- one pUSD, nothing, or
   half for an "Unknown/50-50" resolution -- each exactly 1, 0 or 0.5 and
   the market's adding up to one. The token's outcome is its own: a NO token
   of a market resolved YES pays nothing. Its stage is final: a UMA
@@ -94,13 +97,18 @@ NAME = "Polymarket"
 ENTITLED = "Public market data: a contract is read only for a subject the lake asked for"
 #: What each outcome token is and pays, said on the Datasets page.
 VENDOR_NOTE = (
-    "Each outcome is its own token and contract, paying one USDC if it is the result: "
-    "Polymarket's own USDC instrument, never a dollar."
+    "Each outcome is its own token and contract, paying one pUSD, Polymarket's collateral "
+    "token, if it is the result."
 )
 #: Polymarket in the venue master: its own code, as a symbol.
 VENUE_IDENTIFIERS: tuple[tuple[str, str, str], ...] = (("symbol", "polymarket", "polymarket"),)
-CASH = Cash("USDC", "token", name="USD Coin at Polymarket")
-#: What one outcome token pays if its outcome is the result: one USDC.
+#: pUSD on Polygon, by its CAIP-19 (ruling 550): the contract
+#: 0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB, "pUSD (CollateralToken Poly v2)"
+#: on Polymarket's Contracts page, lower-cased as CAIP-10 addresses are.
+PUSD_CAIP19 = "eip155:137/erc20:0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb"
+CASH = Cash("PUSD", "token", scheme="caip19", value=PUSD_CAIP19,
+            name="pUSD, Polymarket's collateral")  # fmt: skip
+#: What one outcome token pays if its outcome is the result: one pUSD.
 PAYOUT = Decimal("1")
 #: What a resolution settles a token at: its payout, half of it, or nothing.
 SETTLES = frozenset({Decimal(0), Decimal("0.5"), PAYOUT})

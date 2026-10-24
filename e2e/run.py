@@ -1,5 +1,5 @@
 """`make e2e` and `make e2e-recorded`: the plugin end to end on core's plugin
-harness (contracts v19 to v26), with sample data, beside a reader (e2e/reader.py).
+harness (contracts v19 to v27), with sample data, beside a reader (e2e/reader.py).
 
 1. Launched: the plugin registers its catalogue; the deployment admin's tool
    lists its one dataset, `live`, of prices and quotes, on the UTC day ending
@@ -19,10 +19,10 @@ harness (contracts v19 to v26), with sample data, beside a reader (e2e/reader.py
 4. Prices wanted and recorded: the reader follows the token and reads its
    latest; the lake asks the plugin, which reads the record (W3.6), names it
    Polymarket's token by the custodian's symbol, joins Polymarket's own code
-   to it with Polymarket's words offered, resolves Polymarket's
-   own USDC instrument -- the one record it mints -- and records the token's
-   last trade, best bid and offer in USDC on that instrument, never the
-   dollar, exactly as stated; the reader reads and hears them, each naming
+   to it with Polymarket's words offered, resolves pUSD, Polymarket's
+   collateral, by its CAIP-19 to the platform's record (ruling 550), and
+   records the token's last trade, best bid and offer in pUSD on that
+   record, never the dollar, exactly as stated; the reader reads and hears them, each naming
    its raw record and Polymarket's venue, which the stand-in's venue master
    holds by its code from contract v26.
 5. Quotes wanted and recorded: the reader reads its latest quote; the
@@ -35,15 +35,15 @@ harness (contracts v19 to v26), with sample data, beside a reader (e2e/reader.py
 6a. An outcome (contract v23): the reader asks for the resolved token's
    price; the plugin names it and records its outcome, unasked, in
    `outcomes` -- from the token's own side, it pays its full payout, final,
-   settling at one USDC on Polymarket's USDC record, Polymarket's word (the
+   settling at one pUSD on the platform's pUSD record, Polymarket's word (the
    token's own stated price, 1) kept as reported, valid from when the
    answer stating it arrived, no payout time, no business date -- which the
    reader hears and reads back as version 1.
 6. Declined: the token of a market of three outcomes is declined as not
    covered.
 7. Parity: the plugin's two read tools answer through the deployment's MCP
-   what its two pages show: one contract mapped, its payout of one USDC on
-   Polymarket's USDC record.
+   what its two pages show: one contract mapped, its payout of one pUSD on
+   the platform's pUSD record.
 8. Its raw responses are in its granted storage, and `store lake` prints
    each row kept, numbered with no holes, the wants asked, answered, declined
    and withdrawn, and no miss.
@@ -87,14 +87,15 @@ OUTCOME = {"determination": "OUTCOME_DETERMINATION_PAYS", "stage": "OUTCOME_STAG
            "amount": "1", "as_reported": "polymarket:outcomePrices=1", "settled_at_ns": 0,
            "source_times": 0, "currency_code": ""}
 STATED = {"PRICE_KIND_LAST": "0.440", "PRICE_KIND_BID": "0.43", "PRICE_KIND_ASK": "0.45"}
-#: Core v26's stand-in platform mints every event contract paying one unit
-#: of the currency the request offers, USD by default (core 17a13a2,
-#: deploy/harness/platform.py, `event_contract()`), where a Polymarket token
-#: pays one USDC on Polymarket's own instrument: the plugin rightly declines
-#: a record stating another payout, so steps 4 to 7 wait for the harness
-#: (queued as a v27 core harness fix) and the run proves what it can
-#: (`pending`). Set False once the stand-in mints a token paying the venue's.
-HARNESS_PAYS_USD = True
+#: A Polymarket token pays one pUSD (ruling 550, 2026-10-24): the plugin
+#: names its cash by pUSD's CAIP-19, as the platform's master holds it. Core
+#: v27's stand-in platform (a5da59a, `event_contract()`) still mints a
+#: contract paying the currency the source offers -- the custodian's USD
+#: here -- or else one USDC on Polygon, never pUSD, so the plugin rightly
+#: declines each token as another payout, and steps 4 to 7 wait for core's
+#: next harness, which pays pUSD: the run proves what it can (`pending`).
+#: Set False on that harness, with the custodian offering no currency.
+PAYOUT_IDENTITY_PENDING = True
 #: Polymarket in the stand-in platform's venue master (contract v26), and
 #: the synthetic token's negative-risk event.
 POLYMARKET = "VEN-01JAE000000000000000POLYM"
@@ -246,7 +247,7 @@ def run():
            "personal_use=false", "note=Kept, as the default says, for the e2e's reader.")
     runner("entitle", "--instance", "reader", OUTCOMES, "note=The e2e's reader.")
 
-    if HARNESS_PAYS_USD:
+    if PAYOUT_IDENTITY_PENDING:
         return pending(started, named, subject, ranged)
 
     # 4. Prices wanted, recorded, read and heard.
@@ -264,8 +265,9 @@ def run():
     prices = until(90, lambda: heard("price", set(STATED) if EXACT else set()),
                    "step 4, the prices were not heard")
     served = call(named["read_datasets"], {}, "read", "unchanged")["data"]
-    usdc = served["cash_instrument"]
-    must(usdc and served["cash"] == "USDC", f"step 4, Polymarket's USDC resolved: {served}")
+    pusd = served["cash_instrument"]
+    must(pusd.startswith("INS-") and served["cash"] == "PUSD",
+         f"step 4, pUSD resolved to the platform's record by its CAIP-19: {served}")
     kept = until(60, lambda: read(f"/prices?subject={subject}&dataset={DATASET}")["prices"],
                  "step 4, the prices kept were not read")
     must({r["kind"] for r in kept} <= set(STATED), f"step 4, the latest read: {kept}")
@@ -273,8 +275,8 @@ def run():
         amount = Decimal(row["amount"])
         must((row["amount"] == STATED[row["kind"]] or not EXACT) and 0 <= amount <= 1,
              f"step 4, {row['kind']} per token as Polymarket stated it: {row}")
-        must(row["instrument_id"] == usdc and row["currency_code"] == "",
-             f"step 4, in Polymarket's USDC, never a currency: {row}")
+        must(row["instrument_id"] == pusd and row["currency_code"] == "",
+             f"step 4, in pUSD, never a currency: {row}")
         must(row["venue_id"] == POLYMARKET and row["unconverted"] == []
              and row["raw"].startswith("responses/") and not row["business_date"],
              f"step 4, the venue held by its code named by its ID, its raw record: {row}")
@@ -286,10 +288,6 @@ def run():
          and ("symbol", VENUE, contract) in held,
          f"step 4, the platform's record minted by the token's ID, Polymarket's code joined: "
          f"{record}")
-    listed = runner("instruments")
-    log("instruments, after the want:\n" + listed)
-    must(sum(1 for line in listed.splitlines() if "USDC" in line) <= 1,
-         f"step 4, one record minted, Polymarket's USDC: {listed}")
 
     # 5. Quotes wanted, recorded, heard.
     read(f"/quotes?subject={subject}&dataset={DATASET}")
@@ -299,9 +297,9 @@ def run():
     for field, stated in QUOTE.items():
         must(not EXACT or quote.get(field) == stated,
              f"step 5, the quote's {field} as stated: {quote}")
-    must(quote.get("bid_instrument_id", usdc) == quote.get("ask_instrument_id", usdc) == usdc
+    must(quote.get("bid_instrument_id", pusd) == quote.get("ask_instrument_id", pusd) == pusd
          and not quote.get("bid_currency_code") and not quote.get("ask_currency_code"),
-         f"step 5, the quote in Polymarket's USDC: {quote}")
+         f"step 5, the quote in pUSD: {quote}")
 
     # 5a. Its event (contract v26, W3.29): the plugin reports the event its
     # token's market belongs to, each member named by its token's ID; the
@@ -331,8 +329,8 @@ def run():
         listed = read(f"/outcomes?subject={resolved}")["outcomes"]
         must(len(listed) == 1, f"step 6a, one outcome in force: {listed}")
         for said in (row, listed[0]):
-            must(all(said[k] == v for k, v in OUTCOME.items()) and said["instrument_id"] == usdc,
-                 f"step 6a, the outcome from the token's side, in USDC, its word kept: {said}")
+            must(all(said[k] == v for k, v in OUTCOME.items()) and said["instrument_id"] == pusd,
+                 f"step 6a, the outcome from the token's side, in pUSD, its word kept: {said}")
             must(said["dataset"] == OUTCOMES and said["row_key"] == f"{RESOLVED}:outcome"
                  and said["version"] == 1 and not said["business_date"]
                  and said["raw"].startswith("responses/"),
@@ -355,8 +353,8 @@ def run():
     mapped = 2 if EXACT else 1
     must([d["dataset"] for d in served["served"]] == [DATASET, OUTCOMES]
          and served["contracts_mapped"] == mapped and served["subjects_named"] == mapped
-         and served["cash"] == "USDC" and served["cash_instrument"] == usdc
-         and served["payouts"] == ["1 USDC"] and served["served"][0]["recorded"] >= 3
+         and served["cash"] == "PUSD" and served["cash_instrument"] == pusd
+         and served["payouts"] == ["1 PUSD"] and served["served"][0]["recorded"] >= 3
          and served["served"][1]["recorded"] == (1 if EXACT else 0),
          f"step 7, read_datasets: {served}")
     def licensed():
@@ -367,7 +365,7 @@ def run():
     must("Not licensed yet" not in shown and "Licensed" in shown,
          "step 7, the Datasets page says the dataset licensed")
     many = "2 contracts mapped for 2 subjects" if EXACT else "1 contract mapped for 1 subject"
-    must(many in shown and "each contract pays 1 USDC" in shown,
+    must(many in shown and "each contract pays 1 PUSD" in shown,
          "step 7, the Datasets page shows the same")
 
     # 8. Raw responses kept, and the lake's record.
@@ -375,7 +373,7 @@ def run():
                    "from meridian import edge; "
                    "print(sum(1 for p in (edge.storage_dir() / 'responses').rglob('*') if p.is_file()))")
     must(int(kept.stdout.strip() or 0) >= 3, f"step 8, raw responses in storage: {kept.stdout}")
-    names = {subject: "CONTRACT", ranged: "RANGE", resolved: "RESOLVED", usdc: "USDC"}
+    names = {subject: "CONTRACT", ranged: "RANGE", resolved: "RESOLVED", pusd: "PUSD"}
 
     def lake():
         lines = compose("run", "--rm", "-T", "store", "lake").stdout.split("\n")
@@ -410,18 +408,18 @@ def run():
           "by default; nothing asked of Polymarket and no record minted before a want; a "
           "custodian's outcome token, stated by its own symbol and the token's ID, minted by "
           "the platform by the ID, read and named, Polymarket's code joined to it, and its last trade, bid and offer recorded per token on Polymarket's "
-          "own USDC instrument, never the dollar, read and heard; its quote with sizes; its "
+          "pUSD record, never the dollar, read and heard; its quote with sizes; its "
           "event reported and read back as a group; the "
           "token of a market of three outcomes declined as not covered; a resolved token's "
           "outcome recorded unasked from its own side, final, kept, heard and read back; "
           "read_connection and "
-          "read_datasets answering what the pages show, the dataset licensed, the payout one USDC; raw responses "
+          "read_datasets answering what the pages show, the dataset licensed, the payout one pUSD; raw responses "
           "in storage; and `store lake` numbering each row with no holes, and the wants")
 
 
 def pending(started, named, subject, ranged):
-    """What core v26's harness can prove while its stand-in mints a token
-    paying 1 USD (HARNESS_PAYS_USD): the venue held, the platform's record
+    """What the harness can prove while the payout's identity awaits a
+    ruling (PAYOUT_IDENTITY_PENDING): the venue held, the platform's record
     minted by the token's ID, the plugin declining it as another payout --
     never serving a wrong one -- and the market of three outcomes declined
     as not covered; no row recorded, no miss."""
@@ -472,10 +470,10 @@ def pending(started, named, subject, ranged):
           "harness, the datasets listed; nothing asked of Polymarket and no record minted "
           "before a want; a custodian's token, stated by its own symbol and the token's ID, "
           "minted by the stand-in platform paying 1 USD and declined as another payout than "
-          "Polymarket's 1 USDC, nothing recorded; the market of three outcomes declined as "
+          "Polymarket's 1 pUSD, nothing recorded; the market of three outcomes declined as "
           "not covered; no row and no miss. Prices, quotes, the "
-          "event group and the outcome wait for the stand-in to mint a token paying the "
-          "venue's own USDC (HARNESS_PAYS_USD)")
+          "event group and the outcome wait for core's harness to mint a token paying pUSD "
+          "(PAYOUT_IDENTITY_PENDING)")
 
 
 def diagnose():

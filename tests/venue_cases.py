@@ -20,6 +20,7 @@ from typing import Any
 
 from meridian.edge import RawStore
 from meridian.roles.data.event_contracts import Event, Market
+from meridian.roles.data.testing import EVENT_CONTRACTS_NOT_PRESENTED
 
 from polymarket import page
 from polymarket.convert import PolymarketMarket
@@ -39,12 +40,12 @@ TODAY = date(2026, 10, 10)
 #: An outcome token -- a final's YES -- with both sides of its book and a last
 #: trade.
 BASE = "71321045679252212594626385532706912750332728571942532289631379312455583992563"
-#: Its last trade's price, its best bid and offer and their sizes, in USDC.
+#: Its last trade's price, its best bid and offer and their sizes, in pUSD.
 LAST = "0.440"
 BID, BID_SIZE = "0.43", "550.5"
 ASK, ASK_SIZE = "0.45", "125.25"
 #: What one token pays if its outcome is the result, in the venue's cash.
-PAYOUT, CASH = "1", "USDC"
+PAYOUT, CASH = "1", "PUSD"
 #: A token whose prices have more places than a float holds.
 EXACT = "10000000000000000000000000000000000000000000000000000000000000000000000000017"
 EXACT_LAST = "0.123456789012345678"
@@ -52,7 +53,7 @@ EXACT_LAST = "0.123456789012345678"
 ONE_SIDED = "20000000000000000000000000000000000000000000000000000000000000000000000000029"
 #: A token of a market of three outcomes, which is not binary.
 NOT_BINARY = "30000000000000000000000000000000000000000000000000000000000000000000000000041"
-#: Polymarket prices in USDC, its own token instrument: never a currency code.
+#: Polymarket prices in pUSD, its collateral token: never a currency code.
 STABLE = True
 
 # ── Outcomes (contract v23) ─────────────────────────────────────────────────
@@ -97,8 +98,15 @@ RIVAL = "9" + "0" * 73 + "911"
 DRAW = "9" + "0" * 73 + "921"
 
 #: The suite's cases Polymarket's one dataset never presents, each with why:
-#: the dataset publishes prices and quotes now, per outcome token, in USDC.
+#: the dataset publishes prices and quotes now, per outcome token, in pUSD.
+#: From contract v27 the SDK names an event-contract venue's own
+#: (`EVENT_CONTRACTS_NOT_PRESENTED`): the rates cases; the dataset's liveness,
+#: since Polymarket is polled over REST and no stream gives a heartbeat;
+#: `queries-the-lake-within-bounds`, about trades, which it records none of;
+#: and the feed delay, about `latency`, which core receives from contract v28
+#: (ruling 518).
 NOT_PRESENTED = {
+    **EVENT_CONTRACTS_NOT_PRESENTED,
     "a-daily-close": "its one dataset publishes live prices and quotes, and no daily closes",
     "the-forming-day-restated": "its one dataset publishes no daily closes to restate",
     "a-daily-bar": "its one dataset publishes live prices and quotes, and no bars",

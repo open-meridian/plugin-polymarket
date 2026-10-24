@@ -66,7 +66,7 @@ def _resolved(params: Any) -> Any:
     for instrument_id, held in RECORDS.items():
         if any(i in held for i in params.identifiers):
             return ops.ResolveIdentifierResult(found=True, instrument_id=instrument_id)
-    return ops.ResolveIdentifierResult(found=True, instrument_id="LCL-usdc")
+    return ops.ResolveIdentifierResult(found=True, instrument_id="INS-pusd")
 
 
 def _delivering(want: ops.ObservationsWantedEvent) -> Callable[[Any], Any]:

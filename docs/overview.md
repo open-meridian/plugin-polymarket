@@ -4,6 +4,10 @@ The Polymarket plugin puts Polymarket's public market data for its outcome
 tokens into your deployment's lake, where the plugins that watch and value
 your book read it. It needs no key: Polymarket's market data is public.
 
+It is for users outside the US: it reads the international Polymarket,
+which does not serve US persons. For users in the US, install the Polymarket
+US plugin (plugin-polymarket-us) instead.
+
 It is a data plugin: its first-use path, its two pages and its Summary figures are every data plugin's, described once on [Using a data plugin](https://open-meridian.dev/how-to/using-a-data-plugin/). These sections cover what is Polymarket's own.
 
 ## Its role
@@ -16,7 +20,7 @@ them is for the reporting, portfolio, signal and other reading plugins.
 ## What it records
 
 For each outcome token a reader asks about, now: the last trade's price and
-the best bid and offer, per token in USDC, and the best bid and offer with
+the best bid and offer, per token in pUSD, and the best bid and offer with
 their sizes as a quote, at most once a second for each token while a reader
 keeps asking.
 
@@ -28,7 +32,7 @@ it cannot.
 ## Two tokens, two instruments
 
 A Polymarket market ("Will it rain in Paris tomorrow?") has two outcomes,
-Yes and No, each traded as its own token. Each token pays one USDC if its
+Yes and No, each traded as its own token. Each token pays one pUSD if its
 outcome happens and nothing if not, so each is a binary event contract of
 its own, with its own record in your deployment and its own prices.
 
@@ -42,29 +46,34 @@ a token only where its market has two outcomes.
 Where the record lacks the token's ID, its class or its type, the plugin
 offers them, with Polymarket's words for it (the market's question and the
 token's outcome), so you can complete the record on the Instruments page. If
-the record already states a payout that is not one USDC at Polymarket, the
+the record already states a payout that is not one pUSD, the
 plugin does not serve it.
 
 ## Prices are money, not probabilities
 
-A price is what one token costs: 0.43 means 0.43 USDC for a token that pays
-one USDC. The market's implied probability (43%) is that price over the
+A price is what one token costs: 0.43 means 0.43 pUSD for a token that pays
+one pUSD. The market's implied probability (43%) is that price over the
 payout, which a reading plugin may compute; the lake stores only the price.
 
-Prices are in Polymarket's own USDC, a record of its own in your deployment,
-never in dollars: USDC is a token, valued in dollars only through a price of
-it, never by assuming one for one.
+Prices are in pUSD, the token Polymarket trades and pays out in (its
+collateral, backed by USDC), named by its address on Polygon and matched to
+the platform's pUSD record; never in dollars: pUSD is a token, valued in
+dollars only through a price of it, never by assuming one for one.
 
 ## Outcomes
 
 Once Polymarket resolves the market of a token a reader asked about, the
-plugin records the token's outcome: whether it pays its one USDC, pays
+plugin records the token's outcome: whether it pays its one pUSD, pays
 nothing, or pays half (an "Unknown/50-50" resolution), from the token's own
 side, so the NO token of a market resolved YES pays nothing. It records the
 final resolution alone: while a resolution is proposed or disputed,
 Polymarket's public data says so but does not say what was proposed.
 Outcomes are kept by default. Paying the holders of a position is not the
 plugin's: it records what Polymarket resolved.
+
+An outcome carries no challenge deadline: your pages show "deadline not
+reported". Polymarket's public data does not say when a proposed resolution
+can no longer be challenged, and the plugin never works one out itself.
 
 ## Events
 
