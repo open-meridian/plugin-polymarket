@@ -27,7 +27,7 @@ plugin. Never read or name Polymarket US here.
   answers instead of Polymarket with sample data: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
 - **What every data plugin of an event-contract venue does is the SDK's**
-  (open-meridian 0.32.2; nothing is copied between plugins): naming each
+  (open-meridian 0.32.3; nothing is copied between plugins): naming each
   subject, resolving the cash and the venue, recording prices, quotes and
   outcomes, answering wants and keeping them current, and reporting an
   event's group (contract v26), kept current by `Feed.keep_events`

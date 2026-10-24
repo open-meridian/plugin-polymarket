@@ -17,10 +17,10 @@ It is one of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
 data suite and its checks for an event-contract venue unchanged against its own conversion
 (meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
-the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.32.2), never copied
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.32.3), never copied
 between them.
 
-**Status.** 0.9.0, built on open-meridian 0.32.2 (contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
+**Status.** 0.9.0, built on open-meridian 0.32.3 (contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
 role `data`, and proven against the core it pins, by digest. Not
 released, uploaded or launched anywhere.
 
@@ -235,11 +235,9 @@ market of three outcomes declined, a resolved
 token's outcome recorded, kept, heard and read back, both read tools
 answering what the pages show, and `store lake` numbering each row with no
 holes and keeping the outcome's one (`e2e/run.py` says each step).
-A token pays one pUSD (ruling 550), but core v27's stand-in platform
-(a5da59a) mints a token paying the currency the custodian offers, or else
-one USDC on Polygon, never pUSD. So the plugin declines each token as
-another payout, and the run proves what it can (`PAYOUT_IDENTITY_PENDING`)
-until core's next harness, which pays pUSD.
+The custodian offers no currency, so core v27's stand-in platform
+(4574643) mints each token paying the venue's own payout, one pUSD on its
+CAIP-19 record (ruling 550), which the plugin's cash resolves to.
 
     docker run --rm --entrypoint python -v "$PWD/e2e":/e2e:ro \
         -v "$PWD/recordings":/recordings polymarket:local /e2e/record.py TOKEN ...

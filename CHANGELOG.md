@@ -2,7 +2,7 @@
 
 ## 0.9.0
 
-On open-meridian 0.32.2, contract v27 (meridian-design `plans/the-v27-build.md`,
+On open-meridian 0.32.3, contract v27 (meridian-design `plans/the-v27-build.md`,
 §B and §G), on core v27's harness.
 
 - **For users outside the US** (ruling 488): the README, docs/overview.md,
@@ -41,17 +41,19 @@ On open-meridian 0.32.2, contract v27 (meridian-design `plans/the-v27-build.md`,
   pricing in the old record. A token's record a person completed with a
   payout in the old USDC record is declined as another payout until its
   payout is corrected to one pUSD.
-- **The e2e's payout gate renamed** `PAYOUT_IDENTITY_PENDING` (was
-  `HARNESS_PAYS_USD`): core v27's stand-in (a5da59a) mints a token paying
-  the currency offered or else USDC on Polygon, never pUSD, so the run
-  proves the harness-limited path until core's next harness pays pUSD.
-- **The pins**: open-meridian 0.32.2 and plugin-python:0.32.2 by tag and
-  digest (`sha256:2235d96d...54020b80`); core v27's runtime and harness at
-  `a5da59a` (chart 0.1.310) by digest; `meridian` 0.1.52 in check.yaml.
+- **The e2e in full.** `HARNESS_PAYS_USD` and the harness-limited path are
+  gone: core v27's stand-in (4574643) mints a token paying the venue's own
+  payout, one pUSD on its CAIP-19 record, where the source offers no
+  currency, so the custodian offers none, and every step runs -- prices,
+  the quote, the event group, the decline, the outcome, both read tools and
+  the lake's record, in pUSD.
+- **The pins**: open-meridian 0.32.3 and plugin-python:0.32.3 by tag and
+  digest (`sha256:596236b9...661674f3`); core v27's runtime and harness at
+  `4574643` (chart 0.1.311) by digest; `meridian` 0.1.52 in check.yaml.
   e2e-latest.yaml keeps the harness's hidden logs (`include-hidden-files`).
-- Its `DatasetLicence` sets none of 0.32.2's five new fields: core v27
-  refuses a registration carrying them until a core that accepts them is
-  published. The terms page is unchanged.
+- Its `DatasetLicence` sets none of the licence fields 0.32.2 and 0.32.3
+  added (the licence hold); they come in a later version. The terms page is
+  unchanged.
 
 ## 0.8.0
 
