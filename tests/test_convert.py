@@ -1,5 +1,5 @@
 """Polymarket's answers read into the venue's values: two tokens, two
-contracts, each paying one USDC; a token's own book; its last trade."""
+contracts, each paying one pUSD; a token's own book; its last trade."""
 
 from __future__ import annotations
 
@@ -93,7 +93,11 @@ def test_the_synthetic_exchange_reads_as_the_cases_say() -> None:
     one = market.contract(venue.ONE_SIDED)
     assert one is not None and market.last(one).price is None, "never traded"
     assert market.contract("123") is None
-    assert market.cash.code == "USDC" and not market.cash.currency_code
+    assert market.cash.code == "PUSD" and not market.cash.currency_code
+    assert (market.cash.scheme, market.cash.value) == (
+        "caip19",
+        "eip155:137/erc20:0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb",
+    ), "pUSD by its CAIP-19 on Polygon (ruling 550)"
     assert market.venue_identifiers == (("symbol", "polymarket", "polymarket"),)
 
 

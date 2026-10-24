@@ -30,8 +30,8 @@ dataset it is not entitled to.
 The plugin names the tokens your readers ask about from their records, and
 offers the token's ID, the class, the type and Polymarket's words where a
 record lacks them. Complete each record on the **Instruments** page: its
-type, binary event contract, and its payout, one in Polymarket's USDC
-record.
+type, binary event contract, and its payout, one pUSD (Polymarket's
+collateral token, the platform's pUSD record).
 
 ## Agents
 

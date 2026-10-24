@@ -29,7 +29,7 @@ same order. Neither shows a price, a side of the book or a size.
 - **Polymarket**: how many contracts are mapped for the instruments the lake
   asked about, and how many it did not serve and why; the cash its prices
   and payouts are in, your deployment's record for it, and what each
-  contract pays; and that each outcome is its own token and contract, paying one USDC if it is the result.
+  contract pays; and that each outcome is its own token and contract, paying one pUSD, Polymarket's collateral token, if it is the result.
 
 Before anything has been asked of it, Datasets says the next step: "No
 wants yet", until a deployment admin licenses its dataset and entitles a

@@ -7,7 +7,9 @@ contract v19). It runs beside a sidecar in a Meridian deployment and reaches
 nothing else but that sidecar and Polymarket's public reads (no key): what
 it may publish and subscribe to comes from the role `pyproject.toml`
 declares under `[tool.meridian]` (`data`), once a deployment admin approves
-it.
+it. It is the international Polymarket, for users outside the US (ruling
+488); US users use plugin-polymarket-us, a separate venue (QCEX) and
+plugin. Never read or name Polymarket US here.
 
 - `src/polymarket/__main__.py` connects to the sidecar declaring the
   catalogue, the storage and the settings (`declaration.py`) and the pages
@@ -19,16 +21,17 @@ it.
   kept as a raw record before anything is read from it (`meridian.edge.RawStore`);
   `convert.py` reads Polymarket's answers into the venue's values
   (`meridian.roles.data.event_contracts`'s): a Gamma market's two outcome tokens as two contracts, each
-  paying one USDC, its words, its close; a token's own book as its best bid
+  paying one pUSD, its words, its close; a token's own book as its best bid
   and offer with their sizes, and its last trade's price, every figure a
   `Decimal` from Polymarket's text, never through a `float`. `synthetic.py`
   answers instead of Polymarket with sample data: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
 - **What every data plugin of an event-contract venue does is the SDK's**
-  (open-meridian 0.31.0; nothing is copied between plugins): naming each
+  (open-meridian 0.32.3; nothing is copied between plugins): naming each
   subject, resolving the cash and the venue, recording prices, quotes and
   outcomes, answering wants and keeping them current, and reporting an
-  event's group (contract v26) are
+  event's group (contract v26), kept current by `Feed.keep_events`
+  (contract v27), are
   `meridian.roles.data.event_contracts.Feed`, over the venue's values
   (`event_contracts.Cash`, `Contract`, `Resolution`, `Tick`, `Top`, `Event`) and its
   contract map (`event_contracts.ContractMap`, kept in storage); raw records
@@ -50,12 +53,12 @@ it.
   asking Polymarket for that token alone; serve it only where its market has
   two outcomes and the record states no other payout; join the token's ID
   to the record, with the class, the type and Polymarket's words offered,
-  where it lacks any of them; resolve Polymarket's own USDC instrument once
-  (`symbol` `USDC` at `polymarket`, offered as cash: never the dollar, never
-  a contract's CAIP-19), and the venue by its code (`symbol` `polymarket`
+  where it lacks any of them; resolve pUSD, Polymarket's collateral, once
+  by its CAIP-19 on Polygon (`convert.PUSD_CAIP19`, ruling 550; offered as
+  cash: never the dollar, never USDC by its code), and the venue by its code (`symbol` `polymarket`
   at `polymarket`), and where the deployment does not hold it leave each
   row's `venue_id` empty with the code beside it as reported. A price is
-  money per token in Polymarket's USDC (`Money(amount,
+  money per token in pUSD (`Money(amount,
   instrument_id=...)`), never a probability and never a currency code, and
   one outside nothing to the payout is not recorded. A quote leaves a side
   Polymarket states no order on unset. Wants are recorded against
@@ -76,6 +79,10 @@ it.
   resolved (`umaResolutionStatus` `resolved`, closed) into a final outcome
   from `outcomePrices` (each exactly 1, 0 or 0.5); a proposal or a dispute
   states no answer and is not recorded. No business date; no `want_id`.
+  `Outcome.challenge_ends_at_ns` (contract v27) stays 0: it is the venue's
+  statement of when the challenge window ends, and Gamma states a
+  proposal's `customLiveness` but no proposal time (the end is UMA's, on
+  chain); never derive it.
 - **A data plugin shows no market data** (ruled 2026-10-03). Its pages are
   the data role's (meridian-design `spec/plugin-pages-follow-their-role.md`):
   Connection and Datasets, under Manage alone, drawn by the SDK's templates for

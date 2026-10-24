@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.9.0
+
+On open-meridian 0.32.3, contract v27 (meridian-design `plans/the-v27-build.md`,
+§B and §G), on core v27's harness.
+
+- **For users outside the US** (ruling 488): the README, docs/overview.md,
+  AGENTS.md and the package's description say it reads the international
+  Polymarket, and that US users use plugin-polymarket-us.
+- **The events are the SDK's.** `__main__.Events`, the loop reading each
+  served token's event once first served and every ten minutes and
+  reporting it on a change, is gone: `Feed.keep_events` (open-meridian
+  0.32.0) does the same over `PolymarketMarket.event`.
+  `tests/test_events.py` holds the SDK's loop to what Polymarket's did, and
+  that its reports carry no member's bounds (ruling 464): Gamma states no
+  range market's bounds.
+- **No challenge deadline.** Contract v27's `Outcome.challenge_ends_at_ns`
+  stays 0 ("deadline not reported"): Gamma states a proposal's liveness
+  (`customLiveness`) but not when it was proposed (`umaEndDate` is empty
+  until resolved), the end is UMA's on chain, and the plugin records the
+  final stage alone. Said in the README, AGENTS.md and docs/overview.md.
+- **The suite's v27 cases** are named not presented through the SDK's
+  `EVENT_CONTRACTS_NOT_PRESENTED`: the seven rates cases;
+  `records-a-datasets-liveness` (Polymarket is polled each second, and no
+  stream gives a heartbeat); `queries-the-lake-within-bounds`, about trades
+  from v27 (it records none); and `reports-its-feed-delay`, about latency,
+  with ruling 518's reason (core receives ReportLatency from contract v28,
+  ruling 515). The override of `test_a_record_already_complete_is_not_resolved_again`
+  is gone: the SDK's own check holds the ticker since 0.31.1.
+- **Its cash is pUSD** (ruling 550): `Cash("PUSD", "token", scheme="caip19",
+  value="eip155:137/erc20:0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb")`,
+  Polymarket's collateral token ("the collateral token used for all
+  trading", docs.polymarket.com) by its contract on Polygon, which the
+  platform's pUSD record carries. It was `USDC`, known by its code at
+  `polymarket` alone, which no master record matched, so a deployment
+  minted its own. Prices, quotes and outcomes are in pUSD. A contract map
+  kept by 0.8.0 has its cash resolved again on start
+  (`__main__.contract_map`, `tests/test_cash.py`): the SDK's map keeps the
+  cash's ID and never asks again, so an upgrade would otherwise go on
+  pricing in the old record. A token's record a person completed with a
+  payout in the old USDC record is declined as another payout until its
+  payout is corrected to one pUSD.
+- **The e2e in full.** `HARNESS_PAYS_USD` and the harness-limited path are
+  gone: core v27's stand-in (4574643) mints a token paying the venue's own
+  payout, one pUSD on its CAIP-19 record, where the source offers no
+  currency, so the custodian offers none, and every step runs -- prices,
+  the quote, the event group, the decline, the outcome, both read tools and
+  the lake's record, in pUSD.
+- **The pins**: open-meridian 0.32.3 and plugin-python:0.32.3 by tag and
+  digest (`sha256:596236b9...661674f3`); core v27's runtime and harness at
+  `4574643` (chart 0.1.311) by digest; `meridian` 0.1.52 in check.yaml.
+  e2e-latest.yaml keeps the harness's hidden logs (`include-hidden-files`).
+- Its `DatasetLicence` sets none of the licence fields 0.32.2 and 0.32.3
+  added (the licence hold); they come in a later version. The terms page is
+  unchanged.
+
 ## 0.8.0
 
 On open-meridian 0.31.0, contract v26: Polymarket's events reported as
