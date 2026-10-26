@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.10.0
+
+On open-meridian 0.33.0, contract v28 (meridian-design `plans/the-v28-build.md`;
+task `sdk-contract/venue-plugins-keep-outcome-stages-and-bars`), on core
+v28's harness.
+
+- **Fees by market category** (571; task
+  `sdk-contract/event-contract-fees-vary-by-market-category`): Connection's
+  "Limits and use" gains a "Fees" row, and `read_connection` a `fees`
+  record -- Polymarket's published taker fee rate by market category, maker
+  rate and rebate, and formula, read from docs.polymarket.com/trading/fees
+  on 2026-10-26, for the options sample's fee schedule to take (`fees.py`).
+  Gamma also states each market's own fee (`feeSchedule`, `feeType`), which
+  can differ from its category's row (read 2026-10-26: an election market
+  `zero_fees` at 0 against Politics' 0.04; a sports market
+  `sports_fees_v2` at 0.03 against Sports' 0.05); a market's own applies to
+  it.
+- **Proposed and disputed stages: still not recorded, checked again.** On
+  2026-10-26, of 144 markets Gamma answered as `proposed` or `disputed`,
+  none stated the proposed answer (`outcomePrices` stay the book's) or the
+  challenge window's end (`umaEndDate` empty on every one), and the
+  contract's `Outcome` needs a settlement value at every stage. Both are on
+  chain, in UMA's oracle, which this version does not read; an outcome is
+  still recorded at its final stage alone, its `challenge_ends_at_ns` 0.
+- **The suite's v28 cases**: `reports-its-feed-delay` is presented (518) on a
+  standing want of the token's quote, whose book states its time --
+  Polymarket's last trade states none, so the SDK's producer, keeping last
+  prices alone, would age nothing (`tests/venue_cases.producers`, run by
+  `tests/test_data_role.py`); `a-crossed-quote-is-recorded-invalid` on a
+  synthetic token whose book is crossed (`CROSSED`); the option-chain,
+  filings, duplicate and gap cases not presented, the SDK's list (602).
+- **`meridian plugin migrate`** (to_0_33_0): e2e/reader.py's SubjectRefs
+  handed to the SDK are `meridian.SubjectRef` (ruling 599).
+- **The pins**: open-meridian 0.33.0 and plugin-python:0.33.0 by tag and
+  digest (`sha256:c95f1a03...c0fe39c6`); core v28's runtime and harness at
+  `8def82a` (chart 0.1.313) by digest; `meridian` stays 0.1.52 in
+  check.yaml until 0.1.53 is released.
+- The README's "not released" line is gone.
+
 ## 0.9.0
 
 On open-meridian 0.32.3, contract v27 (meridian-design `plans/the-v27-build.md`,
