@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.11.0
+
+On open-meridian 0.33.1, contract v28 (rulings 622, 624, 625, 626, 629,
+630, 647 to 649; task `sdk-contract/venue-plugins-keep-outcome-stages-and-bars`),
+on core v28's harness.
+
+- **A proposal's and a dispute's stage, read on chain** (622): a new secret
+  setting, **Polygon RPC URL** (`polygon_rpc_url`), which the deployment
+  admin enters and the plugin never logs, keeps or shows. With it, a market
+  Gamma states `proposed` or `disputed` is read in UMA's oracle on Polygon
+  with read-only `eth_call`s (`uma.py`): the adapter Gamma names
+  (`resolvedBy`), `getQuestion` by its `questionID` (a negative-risk
+  market's `negRiskRequestID`), then the adapter's OptimisticOracleV2,
+  `getRequest` -- two calls per read (each minute past the market's close),
+  the oracle and its default liveness once each. The proposed stage carries
+  the answer proposed per token (10^18 the first outcome, 0 the second,
+  half each half; "too early" no answer), valid from the proposal's time
+  (expiration less liveness) and `challenge_ends_at_ns` the expiration; the
+  disputed stage the price disputed and no window; a dispute asked again
+  with nothing proposed yet stands with the answer recorded last. Word
+  `uma:proposedPrice`. Without the setting, outcomes are final only, as in
+  0.10.0, and Connection's new "Polygon RPC" endpoint says so.
+  `restates-a-disputed-outcome` is now presented, on a synthetic chain.
+- **Bars** (624, 625): a third dataset, `bars` (`meridian.v1.Bar`, its
+  trades counted, no vwap; pull and push; the UTC day; kept), each
+  token's hourly and daily bars built from Polymarket's public trades
+  (data API `/v2/trades?condition=`), kept by the SDK's `Feed.keep_bars`
+  every five minutes, first 30 days back. Each fill's wallet, display name,
+  pseudonym, bio, profile images and transaction hash are dropped before
+  the raw record is kept (`venue.trades_kept`). A market's trades are read
+  once per pass for both tokens and intervals, at most 20 pages back.
+  `BARS_DECLARED` in `tests/venue_cases.py`; `a-daily-bar` is presented. On
+  the synthetic exchange one pass keeps 5 bars of the base token: 4 hours
+  and the day before.
+- **Feed delay** (626, 648): the plugin's own producer standing the
+  feed-delay case on the quote, and the test overriding the SDK's check,
+  are gone: the SDK's producer does it from 0.33.1.
+- **Fees per market** (630): Connection's "Fees" row says which fee
+  applies to each contract served -- its market's own as Gamma states it
+  (`feeSchedule`, `feeType`), else the category table's row for the one
+  category its event's tags name, else none and why, never another
+  category's -- the first three a tap away and each in `read_connection`'s
+  `fees.markets` (`code`, `taker`, `source` `market`/`category`/`none`,
+  `said`). No call added: the market's fee is in the Gamma answer it reads,
+  its event's tags in the event it reports.
+- **The pins**: open-meridian 0.33.1 and plugin-python:0.33.1 by tag and
+  digest (`sha256:75ec238c...d5f46bac`); core's runtime and harness stay at
+  `8def82a` (chart 0.1.313); `meridian` stays 0.1.52 in check.yaml.
+
 ## 0.10.0
 
 On open-meridian 0.33.0, contract v28 (meridian-design `plans/the-v28-build.md`;

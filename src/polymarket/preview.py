@@ -38,7 +38,8 @@ from meridian.testing import PageClient
 
 from .convert import PolymarketMarket
 from .page import hold, pages
-from .synthetic import Synthetic
+from .synthetic import Synthetic, SyntheticChain
+from .uma import Uma
 from .venue import Polymarket
 
 #: The preview's clock: 2026-10-10 12:00 UTC.
@@ -79,7 +80,9 @@ async def _worked() -> Feed:
     lake.answer("ResolveInstrument", _record)
     store = RawStore(Path(tempfile.mkdtemp(prefix="polymarket-preview-")))
     client = Polymarket(store, transport=Synthetic(), clock_ns=lambda: NOW_NS)
-    feed = Feed(lake, PolymarketMarket(client, "synthetic"), ContractMap(), clock_ns=lambda: NOW_NS)
+    chain = Uma("synthetic", store, client.health, post=SyntheticChain(), clock_ns=lambda: NOW_NS)
+    market = PolymarketMarket(client, "synthetic", chain)
+    feed = Feed(lake, market, ContractMap(), clock_ns=lambda: NOW_NS)
     subjects = list(RECORDS)
     for n in range(30):
         want = ops.ObservationsWantedEvent(
@@ -100,6 +103,7 @@ async def _worked() -> Feed:
         )
         lake.answer("ObservationsWanted", _delivering(want))
         await lake.receive(observations_wanted=feed.on_want)
+    await feed.keep_events(once=True)
     feed.licensed = frozenset({feed.dataset("live")})
     return feed
 

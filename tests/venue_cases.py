@@ -20,25 +20,22 @@ from pathlib import Path
 from typing import Any
 
 from meridian.edge import RawStore
-from meridian.roles.data import Standing, event_contracts
 from meridian.roles.data.event_contracts import Event, Market
-from meridian.roles.data.testing import (
-    EVENT_CONTRACTS_NOT_PRESENTED,
-    Instruments,
-    event_contract_producers,
-    feed_delay,
-    held,
-)
+from meridian.roles.data.testing import EVENT_CONTRACTS_NOT_PRESENTED, event_contract_producers
 from meridian.suites import Producer
 
 from polymarket import page
 from polymarket.convert import PolymarketMarket
-from polymarket.synthetic import Synthetic
+from polymarket.declared import BARS
+from polymarket.synthetic import Synthetic, SyntheticChain
+from polymarket.uma import Uma
 from polymarket.venue import Polymarket, RateLimiter
 
 __all__ = ["page"]
 
 SYNTHETIC = Path(__file__).parent.parent / "src" / "polymarket" / "synthetic"
+#: Later answers: the proposal disputed (UMA's oracle on chain, from 0.11.0).
+EXCHANGES = Path(__file__).parent / "exchanges"
 
 #: The venue's name as a symbol's source, and the plugin's.
 VENUE = "polymarket"
@@ -82,17 +79,29 @@ PARTIAL, PARTIAL_VALUE = (
     "60000000000000000000000000000000000000000000000000000000000000000000000000067",
     "0.5",
 )
-#: A token past its market's end with a resolution proposed: Gamma states the
-#: stage and not the proposal's answer, so nothing is recorded.
-PENDING = "80000000000000000000000000000000000000000000000000000000000000000000000000081"
-#: No later stage: a Polymarket resolution is final once made.
+#: A token past its market's end, nothing proposed for it yet: nothing is
+#: recorded.
+PENDING = "80000000000000000000000000000000000000000000000000000000000000000000000000085"
+#: A token whose market's resolution is proposed (from 0.11.0, ruling 622):
+#: Gamma states the stage, and UMA's oracle on chain the answer proposed --
+#: YES at 11:00 under two hours' liveness -- so its proposed stage is
+#: recorded, its challenge window ending at 13:00; later disputed
+#: (`exchanges/disputed`).
+PROPOSED = "80000000000000000000000000000000000000000000000000000000000000000000000000081"
+#: No later stage after final: a Polymarket resolution is final once made.
 LATER: tuple[tuple[Path, str, int], ...] = ()
 #: The suite's outcome cases as Polymarket presents them: an outcome recorded
 #: at the stage it states, final (the case takes determined or final, ruled
-#: 2026-10-13), and a partial payout. A dispute it never states: see
-#: NOT_PRESENTED.
+#: 2026-10-13), a partial payout, and from 0.11.0 a proposal recorded, then
+#: disputed.
 DETERMINED: str | None = RESOLVED
-DISPUTED: tuple[str, tuple[Path, ...]] | None = None
+DISPUTED: tuple[str, tuple[Path, ...]] | None = (PROPOSED, (EXCHANGES / "disputed",))
+
+# ── Bars (0.33.1; ruling 624) ───────────────────────────────────────────────
+
+#: Its `bars` dataset's declaration: the UTC day a daily bar is in. The
+#: synthetic final's trades hold closed hours and the day before TODAY.
+BARS_DECLARED = BARS
 
 # ── Event groups (contract v26) ─────────────────────────────────────────────
 
@@ -109,20 +118,22 @@ MAYOR_CONDITION = "0x" + "6a" * 32
 RIVAL = "9" + "0" * 73 + "911"
 DRAW = "9" + "0" * 73 + "921"
 
-#: The suite's cases Polymarket's one dataset never presents, each with why:
-#: the dataset publishes prices and quotes now, per outcome token, in pUSD.
+#: The suite's cases Polymarket's datasets never present, each with why:
+#: the live dataset publishes prices and quotes now, per outcome token, in
+#: pUSD; from 0.11.0 the bars dataset its bars, built from its trades.
 #: From contract v27 the SDK names an event-contract venue's own
 #: (`EVENT_CONTRACTS_NOT_PRESENTED`): the rates cases; the dataset's liveness,
 #: since Polymarket is polled over REST and no stream gives a heartbeat;
 #: `queries-the-lake-within-bounds`, about trades, which it records none of;
 #: from contract v28 the chains and filings cases, and the duplicate and gap
 #: cases, since its quotes are polled and no message is numbered. Its feed
-#: delay is reported (required again from contract v28, ruling 518).
+#: delay is reported (required again from contract v28, ruling 518), on its
+#: quote: its last trade states no time (the SDK's producer from 0.33.1,
+#: ruling 626).
 NOT_PRESENTED = {
     **EVENT_CONTRACTS_NOT_PRESENTED,
     "a-daily-close": "its one dataset publishes live prices and quotes, and no daily closes",
     "the-forming-day-restated": "its one dataset publishes no daily closes to restate",
-    "a-daily-bar": "its one dataset publishes live prices and quotes, and no bars",
     "an-fx-rate": "it prices event contracts, and no currency's rate against another",
     "a-subject-another-source-resolved": "its subjects are event contracts, and no security",
     "a-trade-recorded": "its one dataset publishes prices and quotes, and no trades",
@@ -138,8 +149,6 @@ NOT_PRESENTED = {
     "no settlement calendar",
     "asks-for-a-settlement-date": "it records prices and quotes as published; an event contract "
     "settles on its outcome, and it never computes a settlement date",
-    "restates-a-disputed-outcome": "Polymarket's public reads state a resolution only once it is "
-    "final; a proposal's answer and a dispute are not stated",
 }
 
 
@@ -148,8 +157,9 @@ def _instant(_: float) -> None:
 
 
 def market(now_ns: int = NOW_NS, directory: Path | None = None) -> Market:
-    """Polymarket's synthetic exchange through the plugin's own client, its
-    answers kept in a fresh store."""
+    """Polymarket's synthetic exchange through the plugin's own client, and
+    UMA's oracle on its synthetic chain, its answers kept in a fresh
+    store."""
     store = RawStore(Path(tempfile.mkdtemp(prefix="polymarket-raw-")))
     client = Polymarket(
         store,
@@ -158,7 +168,15 @@ def market(now_ns: int = NOW_NS, directory: Path | None = None) -> Market:
         clock_ns=lambda: now_ns,
         sleep=_instant,
     )
-    return PolymarketMarket(client, "synthetic")
+    chain = Uma(
+        "synthetic",
+        store,
+        client.health,
+        post=SyntheticChain(directory or SYNTHETIC),
+        limiter=RateLimiter(1000.0, 1000, sleep=_instant),
+        clock_ns=lambda: now_ns,
+    )
+    return PolymarketMarket(client, "synthetic", chain)
 
 
 def event(condition: str) -> Event:
@@ -181,27 +199,8 @@ def calls(market: Any) -> list[str]:
     return [r["request"]["url"] for r in market.client.store.records()]
 
 
-async def _kept_current(recorder: Any, latency: Any) -> None:
-    """A standing want of the base token's quote kept current, its rows'
-    age at the edge recorded. Polymarket's last trade states no time
-    (`/last-trade-price` answers a price and a side), so the SDK's own
-    producer, which stands a want of last prices alone, records no row with
-    a source time; the book states its `timestamp`, and a quote carries it.
-    The same Feed, conversion and exchange as every other case."""
-    store = Instruments().answering(recorder)
-    feed = event_contracts.Feed(
-        recorder, market(NOW_NS), event_contracts.ContractMap(), clock_ns=lambda: NOW_NS
-    )
-    feed.wants.latency = latency
-    subject = await held(store, feed, BASE)
-    feed.standing["WNT-T"] = Standing(
-        "WNT-T", feed.dataset(event_contracts.LIVE), "meridian.v1.Quote", (subject,), (), NOW_NS
-    )
-    await feed.current()
-
-
 def producers() -> dict[str, Producer]:
-    """The SDK's producers for an event-contract venue, its feed delay's
-    over Polymarket's quote (`_kept_current`) rather than its last trade."""
-    made = event_contract_producers(sys.modules[__name__])
-    return {**made, "reports-its-feed-delay": feed_delay(_kept_current)}
+    """The SDK's producers for an event-contract venue, unchanged: from
+    open-meridian 0.33.1 its feed delay stands on the quote where the last
+    trade states no time (ruling 626), so the plugin's own producer is gone."""
+    return event_contract_producers(sys.modules[__name__])

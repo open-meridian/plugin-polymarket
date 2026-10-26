@@ -5,8 +5,11 @@ deployment's lake: a data plugin. For each outcome token a deployment's
 readers ask about -- each a binary event contract -- it records the last
 trade's price and the best bid and offer, per token in pUSD, and the best bid
 and offer with their sizes as a quote, every figure exactly as Polymarket
-stated it; and, from contract v23, each such token's outcome once Polymarket
-resolves its market. No key: Polymarket's market data is public.
+stated it; from contract v23, each such token's outcome once Polymarket
+resolves its market -- and, from 0.11.0, its proposed and disputed stages,
+read from UMA's oracle on chain where the deployment admin entered a Polygon
+RPC URL; and from 0.11.0 each token's hourly and daily bars, built from
+Polymarket's public trades. No key: Polymarket's market data is public.
 
 **For users outside the US.** This plugin reads the international
 Polymarket, which does not serve US persons. A deployment for users in the
@@ -17,20 +20,21 @@ It is one of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
 data suite and its checks for an event-contract venue unchanged against its own conversion
 (meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
-the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.33.0), never copied
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.33.1), never copied
 between them.
 
-**Status.** 0.10.0, built on open-meridian 0.33.0 (contract v28: its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
+**Status.** 0.11.0, built on open-meridian 0.33.1 (contract v28: a proposal's and a dispute's stage read from UMA's oracle on chain, each token's hourly and daily bars from its public trades, the fee applying to each market on Connection, its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
 role `data`, and proven against the core it pins, by digest.
 
 ## What it does
 
-Two datasets, declared from code in its catalogue (`declaration.py`):
+Three datasets, declared from code in its catalogue (`declaration.py`):
 
 | Dataset | Data | Modes | Day | Default licence |
 |---|---|---|---|---|
 | `<instance>:live` | each token's last trade, best bid and offer as prices; its best bid and offer with sizes as a quote | pull, stream | `Etc/UTC`, ending at 00:00 | kept two days |
-| `<instance>:outcomes` | each token's outcome once its market is resolved, final (contract v23) | push | `Etc/UTC`, ending at 00:00 (an outcome names no business date) | kept |
+| `<instance>:outcomes` | each token's outcome once its market is resolved, final (contract v23); from 0.11.0 proposed and disputed first, where a Polygon RPC URL is set | push | `Etc/UTC`, ending at 00:00 (an outcome names no business date) | kept |
+| `<instance>:bars` | from 0.11.0, each token's hourly and daily bars, built from its public trades, trades counted, no volume-weighted price | pull, push | `Etc/UTC`, ending at 00:00 | kept |
 
 - **Per subject wanted, never the whole venue.** A reader reads a price or
   quote nothing has recorded; the lake asks this plugin (a want). The plugin
@@ -80,24 +84,56 @@ Two datasets, declared from code in its catalogue (`declaration.py`):
   side -- one pUSD, nothing, or half for an "Unknown/50-50" resolution, as
   the market's `outcomePrices` state it -- so a NO token of a market
   resolved YES pays nothing. Polymarket's word, the token's own stated
-  price, is kept as reported. Its stage is final: a UMA resolution, once
-  made, is reported on chain, and Polymarket states no stage between a
-  proposal and it. A proposal in its 2-hour challenge period, and a dispute,
-  state their stage but never their answer (Gamma's `outcomePrices` stay the
-  book's while one stands), so nothing is recorded for either: a Polymarket
-  outcome is recorded at its final stage alone. Polymarket states no time
-  of resolution or payout: an outcome is valid from when the answer first
-  stating it arrived, its payout time left 0 (holders redeem their tokens
-  themselves). One row key per token (`<token>:outcome`); a token past its
-  market's end is read again each minute until its outcome is recorded.
-  Kept by default; paying holders is servicing's, not the lake's. **No
-  challenge deadline** (contract v27's `Outcome.challenge_ends_at_ns`, left
-  0, which pages show as "deadline not reported"): the field is the
-  venue's own statement, and Gamma states a proposal's liveness
-  (`customLiveness`) but not when it was proposed, nor its end
-  (`umaEndDate` is empty until it resolves); the end is on chain, in UMA's
-  oracle, which the plugin does not read. And it records the final stage
-  alone, which has no window left.
+  price, is kept as reported. That stage is final: a UMA resolution, once
+  made, is reported on chain. Polymarket states no time of resolution or
+  payout: a final outcome is valid from when the answer first stating it
+  arrived, its payout time left 0 (holders redeem their tokens
+  themselves). One row key per token (`<token>:outcome`), each stage a new
+  version of it; a token past its market's end is read again each minute
+  until its final outcome is recorded. Kept by default; paying holders is
+  servicing's, not the lake's.
+- **A proposal and a dispute** (from 0.11.0; ruling 622). Gamma states
+  their stage (`proposed`, `disputed`) but never their answer -- its
+  `outcomePrices` stay the book's while one stands, and `umaEndDate` is
+  empty until it resolves. Both are on chain, in UMA's optimistic oracle on
+  Polygon. Where the deployment admin has entered a **Polygon RPC URL**
+  (the secret setting below), the plugin reads them there with read-only
+  `eth_call`s (`uma.py`): no wallet, no key, no signing, no transaction.
+  For a market Gamma states proposed or disputed it asks the UMA adapter
+  the market names (`resolvedBy`) for its question (`questionID`, or a
+  negative-risk market's `negRiskRequestID`: `getQuestion`), then the
+  adapter's oracle for the request outstanding (`getRequest`): two calls
+  each time the market is read (each minute past its close), plus the
+  adapter's oracle and the oracle's default liveness once each. A request
+  proposed and not disputed is the **proposed** stage: the price proposed
+  as this token's settlement value (10^18 pays the market's first outcome,
+  0 its second, half each half; any other, "too early" among them, is no
+  answer), valid from the proposal's time -- the request's expiration less
+  the liveness it ran under -- and its challenge window's end
+  (`Outcome.challenge_ends_at_ns`) the expiration. A request disputed is the
+  **disputed** stage, the price disputed, no window (a second dispute goes
+  to UMA's vote). A dispute the adapter has asked again, nothing proposed
+  on it yet, stands with the answer recorded last. The plugin's word for
+  both is the oracle's price as it holds it (`uma:proposedPrice`). Without
+  the setting nothing is read on chain and an outcome is recorded at its
+  final stage alone, as before 0.11.0; Connection's "Polygon RPC" endpoint
+  says which, never the URL.
+- **Bars** (from 0.11.0; rulings 624 and 625). For each token it serves,
+  the plugin keeps hourly and daily (UTC day) bars, built from its market's
+  public trades on Polymarket's data API (`/v2/trades?condition=`, each
+  fill once on its taker side): open the first trade's price, high, low,
+  close the last's, volume the tokens traded, the trades counted
+  (`trade_count`), and no volume-weighted price. **A trade's wallet and
+  names are dropped before anything is kept**: of each fill only its
+  market, token, outcome, side, size, price and time are read and kept as
+  the raw record -- never its proxy wallet, display name, pseudonym, bio,
+  profile images or transaction hash. The SDK's `Feed.keep_bars` (open-
+  meridian 0.33.1) runs it: every five minutes each closed hour and day
+  since the last kept, first 30 days back, recorded unasked; a want of
+  `bars` is answered from the same trades. A market's trades are read once
+  per pass for both its tokens and both intervals, walking back at most 20
+  pages of 1,000; a market trading more than that in the window asked keeps
+  the intervals the walk read whole, never one part-built.
 - **Events** (contract v26; meridian-design
   `spec/the-contract-gaps-v26-and-v27-close.md`, A1 to A9; W3.29). For each
   outcome token it serves, the plugin reads the Gamma event its market
@@ -132,20 +168,20 @@ Two datasets, declared from code in its catalogue (`declaration.py`):
 
 The SDK's data suite's cases about a kind of data this plugin never
 publishes are marked not presented, with why, as contracts v19 and v20
-allow (`tests/venue_cases.py`): daily closes and bars, trades, a currency's rate
-and a security's price. It records no trades, so a
+allow (`tests/venue_cases.py`): daily closes, trades, a currency's rate
+and a security's price. From 0.11.0 `a-daily-bar` passes on the synthetic
+final's trades the day before. It records no trades (its bars are built
+from them, never kept as trades), so a
 restart leaves no gap of trades to read back (`a-restarts-gap-backfilled`,
 contract v20, not presented): its live dataset is read again when it is
 next wanted. Contract v22's two calendar cases are not presented either: it
 reads no settlement calendar, and an event contract settles on its outcome,
 so it never computes a settlement date. Of contract v23's three outcome
 cases, `records-an-outcome` is mapped to a resolution recorded final (the
-case takes determined or final, ruled 2026-10-13) and
-`records-a-partial-payout` to a 50-50 resolution;
-`restates-a-disputed-outcome` (`about: disputed outcomes`) is not presented:
-Polymarket's public reads state a resolution only once it is final; a
-proposal's answer and a dispute are not stated, so no outcome is recorded
-before the final one to be restated as disputed. Contract v26's are mapped:
+case takes determined or final, ruled 2026-10-13),
+`records-a-partial-payout` to a 50-50 resolution, and from 0.11.0
+`restates-a-disputed-outcome` to a synthetic proposal read on the
+synthetic chain, then disputed (`tests/exchanges/disputed`). Contract v26's are mapped:
 `reports-an-event-group` on a negative-risk event,
 `reports-a-flag-the-venue-does-not-state` on an augmented one;
 `hears-and-reads-an-event-group` is answered by the SDK. Contract v27's
@@ -160,11 +196,9 @@ Contract v28's are the SDK's list too: the option-chain and filings cases
 (its quotes are polled; no message is numbered).
 `a-crossed-quote-is-recorded-invalid` passes on a synthetic token whose
 book is crossed. `reports-its-feed-delay` (required from contract v28,
-ruling 518) passes on a standing want of the token's quote kept current,
-its rows' age at the edge: Polymarket's last trade states no time, so the
-SDK's own producer, which keeps last prices alone, would age nothing;
-`tests/venue_cases.producers` maps the case to the quote, and
-`tests/test_data_role.py` runs the SDK's check over it. Every other case passes, a price in a stablecoin on the token's
+ruling 518) passes on the SDK's own producer: from open-meridian 0.33.1
+(ruling 626) it stands its want on the quote where the venue's last trade
+states no time, as Polymarket's does, so 0.10.0's own producer is gone. Every other case passes, a price in a stablecoin on the token's
 own instrument and `reads-its-datasets-licences` among them: it reads which
 of its datasets a deployment admin has licensed, on start and each minute.
 
@@ -172,10 +206,11 @@ of its datasets a deployment admin has licensed, on start and each minute.
 
 | Setting | What it does |
 |---|---|
+| Polygon RPC URL (`polygon_rpc_url`) | From 0.11.0; a **secret** the deployment admin enters, never logged, kept or shown: a Polygon JSON-RPC endpoint through which UMA's oracle is read, read only, for a market's proposed and disputed stages and its challenge window's end. Empty: outcomes are recorded once final, as before 0.11.0. |
 | Sample data (`sample_data`) | A developer's setting, shown only on a development deployment: answer from the synthetic exchanges this plugin carries instead of calling Polymarket, or from a developer's recorded exchanges where its storage holds them (`recorded/`). |
 | Raw responses' window (`responses_window_days`, `responses_past_window`) | The SDK's, for the plugin's one kind of raw record: how long Polymarket's answers stay in its storage (30 days by default), and whether a day past it is archived, kept or deleted. |
 
-No secret: Polymarket's public market data needs no key.
+Polymarket's public market data needs no key; the RPC URL is the one secret, as an RPC provider's URL often carries its own key.
 
 ## Its pages, under Manage
 
@@ -189,17 +224,25 @@ the reading roles.
 - **Connection**: "Key" -- the mode (Live, or Sample data), "No key needed",
   what Polymarket entitles it to (public data: a contract read only for a
   subject the lake asked for) and, the role's row for a source of one venue,
-  the venue master's ID it resolved; "Limits and use" -- what Polymarket allows
+  the venue master's ID it resolved, and its endpoints -- Gamma, the CLOB,
+  from 0.11.0 the data API (trades, for bars) and the Polygon RPC ("set by
+  the deployment admin (secret)" or "not set: outcomes are recorded final
+  only", never its URL); "Limits and use" -- what Polymarket allows
   and what the plugin spends of it, its calls and the rate-limited ones
   waited out, the last call and the last error, and, from 0.10.0, "Fees":
   Polymarket's published taker fee rate by market category (Crypto 0.07,
   Sports 0.05, Politics 0.04, Geopolitics 0, Combos 0.05 and the rest),
   makers never charged, read from docs.polymarket.com/trading/fees on
-  2026-10-26, for the options sample's fee schedule to take; each market's
-  own fee as Gamma states it (`feeSchedule`, `feeType`) applies to it where
-  it differs (`fees.py`); "Stream" -- "Does not
+  2026-10-26, for the options sample's fee schedule to take; from 0.11.0
+  (ruling 630) it says which applies to each contract served -- "Per
+  market: n own, n by category, n none" -- the first three contracts' a tap away, each
+  in `read_connection`'s `fees.markets`: its market's own fee as Gamma
+  states it (`feeSchedule`, `feeType`; source `market`), else, where Gamma
+  states none, the row of the one category its event's tags name
+  (`category`), else no rate and why (`none`), never another category's
+  (`fees.py`); "Stream" -- "Does not
   stream": it reads a contract when it is wanted, at most once a second.
-- **Datasets**: "Served" -- each dataset (`live`, `outcomes`), its data, how
+- **Datasets**: "Served" -- each dataset (`live`, `outcomes`, from 0.11.0 `bars`), its data, how
   its rows arrive, its day, its default terms and whether a deployment admin
   has licensed it ("Licensed" or "Not licensed yet", read from the
   deployment from contract v20), what it recorded and declined and when it
@@ -209,8 +252,8 @@ the reading roles.
   it read an instrument's record; then a section under Polymarket's name: the
   contracts mapped for the subjects the lake asked for and those not served
   with why, the cash its prices and payouts are in (pUSD, Polymarket's collateral token, never the dollar) and what each
-  contract pays, and that each outcome is its own token and contract, paying one pUSD, Polymarket's collateral token, if it is the
-  result. Before the lake has asked anything it says the
+  contract pays (one pUSD), and that each outcome is its own token and
+  contract. Before the lake has asked anything it says the
   next step: "No wants yet", a deployment admin licensing its dataset on
   Data sources.
 
@@ -234,6 +277,10 @@ arrived (`meridian.edge.RawStore`); a live answer is a line of its day's file, a
 when it changed, and a row read from an unchanged answer names the line and
 time it first arrived. Each row names its raw record (`RawRecordRef`). Kept in
 units of a UTC day under `responses/`, moved past the window through the SDK.
+Two exceptions, from 0.11.0: a page of the data API's trades is kept with
+each fill's wallet, profile and transaction already dropped (the record is
+what was read, not the bytes as they arrived); and an RPC answer is kept
+with its request but never the URL it went to, the deployment's secret.
 
 ## Proven on core's harness
 

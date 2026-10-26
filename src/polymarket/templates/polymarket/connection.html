@@ -1,16 +1,31 @@
 {#- Polymarket's Connection: the event-contract venue's
     (meridian/roles/data/event_contracts/connection.html), and under
-    "Limits and use" one line of Polymarket's published taker fee rate by
-    market category, its source and the day it was read (fees.py), the
-    whole a tap away. -#}
+    "Limits and use" one line of Polymarket's fees: from 0.11.0 how many
+    contracts served take their market's own rate, their category's or none
+    (ruling 630), then the published taker fee rate by market category, its
+    source and the day it was read (fees.py); the whole, each contract's
+    among it, a tap away. Under "Key", from 0.11.0, whether the Polygon RPC
+    URL is set (ruling 622) -- never the URL -- and what it is read for;
+    with sample data, which calls nothing, the Mode row says it all. -#}
 {% extends "meridian/roles/data/event_contracts/connection.html" %}
 {% block vendor_rows %}
 {{ super() }}
+{% if section == "Key" and data.mode != "Sample data" %}
+{% import "meridian/roles/_rows.html" as om %}
+{% for e in data.endpoints if e.name == "Polygon RPC" %}
+{{ om.row("Polygon RPC URL", e.address[:1]|upper ~ e.address[1:], e.what) }}
+{% endfor %}
+{% endif %}
 {% if section == "Limits and use" %}
 {% import "meridian/roles/_rows.html" as om %}
 {% set fees = data.fees %}
 {% set rates %}{% for r in fees.rates %}{{ r.category }} {{ r.taker }}{% if not loop.last %}, {% endif %}{% endfor %}{% endset %}
-{% set note = [fees.not_read, fees.formula, ("read " if fees.rates else "tried ") ~ fees.read_on ~ " at " ~ fees.source, fees.per_market]|select|join("; ") %}
-{{ om.row("Fees", ("Taker by category: " ~ rates ~ "; makers " ~ fees.makers) if fees.rates else "Not read", note) }}
+{% set own = fees.markets|selectattr("source", "equalto", "market")|list|length %}
+{% set category = fees.markets|selectattr("source", "equalto", "category")|list|length %}
+{% set unrated = fees.markets|selectattr("source", "equalto", "none")|list|length %}
+{% set applying = ("Per market: " ~ own ~ " own, " ~ category ~ " by category, " ~ unrated ~ " none; ") if fees.markets else "" %}
+{% set each %}{% for m in fees.markets[:3] %}{{ m.code[:12] }}{% if m.code|length > 12 %}...{% endif %} {{ m.taker or "no rate" }} ({{ m.said }}){% if not loop.last %}; {% endif %}{% endfor %}{% if fees.markets|length > 3 %}; and {{ fees.markets|length - 3 }} more, each in read_connection{% endif %}{% endset %}
+{% set note = [fees.not_read, fees.per_market, each, fees.formula, ("read " if fees.rates else "tried ") ~ fees.read_on ~ " at " ~ fees.source]|select|join("; ") %}
+{{ om.row("Fees", applying ~ (("Taker by category: " ~ rates ~ "; makers " ~ fees.makers) if fees.rates else "Not read"), note) }}
 {% endif %}
 {% endblock %}

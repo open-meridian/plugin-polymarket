@@ -9,17 +9,28 @@ its event) and `/events/slug/{slug}` (that event, with its markets, for the
 event's grouping) -- and its order
 book's (the CLOB) at clob.polymarket.com, `/book?token_id=` (the token's
 resting bids and offers) and `/last-trade-price?token_id=` (its last
-trade's price and side). Nothing here holds a
+trade's price and side) -- and from 0.11.0 its data API's trades at
+data-api.polymarket.com, `/v2/trades?condition=` (a market's fills, each
+once on its taker side, newest first, for its bars). Nothing here holds a
 credential, and nothing is sent but the request. The standard library's
 HTTP client; the plugin depends on nothing but the SDK. The market list is
 never read: a token is asked for by its ID, one at a time.
+
+**A trade's wallet and names are dropped before anything is kept** (ruling
+624). Polymarket's data API states, beside each fill, the wallet that made
+it and that wallet's profile: its proxy wallet, display name, pseudonym,
+bio, profile images, and the settling transaction's hash, which names the
+wallet on chain. None of them is a trade's price, size or time, so the
+answer is read and only each fill's market, token, outcome, side, size,
+price and time are kept (`TRADE_FIELDS`), with the page's cursor: the raw
+record is that, not the bytes as they arrived.
 
 **Rate limits, honoured.** Polymarket limits its API's requests; this client
 spends at most five a second from a token bucket, and a 429 is waited out
 (its Retry-After, else 1, 2, 4 seconds) and asked again at most three times,
 each one counted.
 
-**Every response is a raw record first** (`meridian.edge.RawStore`), kept exactly as its bytes
+**Every other response is a raw record first** (`meridian.edge.RawStore`), kept exactly as its bytes
 arrived, with its status and the headers that say when it was sent, before
 anything is read from it. A body is parsed with `json_decimal`, so a JSON
 number becomes a Decimal from its own text and never a float.
@@ -45,6 +56,7 @@ from meridian.roles.data import Health, json_decimal
 
 GAMMA = "https://gamma-api.polymarket.com"
 CLOB = "https://clob.polymarket.com"
+DATA = "https://data-api.polymarket.com"
 USER_AGENT = "plugin-polymarket (+https://open-meridian.dev)"
 
 #: What the plugin spends: five a second, in bursts of five.
@@ -56,6 +68,22 @@ NOT_FOUND = 404
 KEPT_HEADERS = ("date", "cache-control", "age", "etag", "retry-after")
 
 
+#: The most fills one page of the data API's trades holds, as it allows.
+TRADES_PAGE = 1000
+#: What is kept of a fill (ruling 624): its market and token, its outcome,
+#: side, size, price and time -- never its wallet, profile or transaction.
+TRADE_FIELDS = (
+    "condition_id",
+    "token_id",
+    "outcome",
+    "outcome_index",
+    "side",
+    "size",
+    "price",
+    "timestamp",
+)
+
+
 @dataclass(frozen=True)
 class Response:
     status: int
@@ -64,6 +92,42 @@ class Response:
 
 
 Transport = Callable[[str, Mapping[str, str]], Response]
+
+
+class _Number(str):
+    """A JSON number's own text, written back as it arrived."""
+
+
+def _encoded(value: Any) -> str:
+    """JSON text of a value read with numbers kept as their text."""
+    if isinstance(value, _Number):
+        return str(value)
+    if isinstance(value, Mapping):
+        return "{" + ",".join(f"{json.dumps(k)}:{_encoded(v)}" for k, v in value.items()) + "}"
+    if isinstance(value, list):
+        return "[" + ",".join(_encoded(v) for v in value) + "]"
+    return json.dumps(value)
+
+
+def trades_kept(text: str) -> str:
+    """A data API trades page with each fill's wallet, profile and
+    transaction dropped (`TRADE_FIELDS` kept), its numbers as they arrived;
+    a body that is no such page, kept as it is (an error's)."""
+    try:
+        page = json.loads(text, parse_float=_Number, parse_int=_Number)
+    except json.JSONDecodeError:
+        return text
+    if not isinstance(page, dict) or not isinstance(page.get("data"), list):
+        return text
+    fills = [
+        {k: fill[k] for k in TRADE_FIELDS if k in fill}
+        for fill in page["data"]
+        if isinstance(fill, dict)
+    ]
+    kept: dict[str, Any] = {"data": fills}
+    if isinstance(page.get("pagination"), dict):
+        kept["pagination"] = page["pagination"]
+    return _encoded(kept)
 
 
 def urllib_transport(url: str, headers: Mapping[str, str]) -> Response:
@@ -154,6 +218,7 @@ class Polymarket:
         path: str,
         params: Mapping[str, str] | None = None,
         live: bool = False,
+        kept: Callable[[str], str] | None = None,
     ) -> Fetched:
         url = base + path + (("?" + urllib.parse.urlencode(params)) if params else "")
         headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
@@ -168,6 +233,8 @@ class Polymarket:
                 raise VenueError(call, 0, str(failed)) from None
             received = self.clock_ns()
             text = answer.body.decode("utf-8", errors="replace")
+            if kept is not None:
+                text = kept(text)
             record = {
                 "venue": "polymarket",
                 "call": call,
@@ -236,6 +303,16 @@ class Polymarket:
     def book(self, token: str) -> Fetched:
         """A token's resting bids and offers."""
         return self._get("book", token, CLOB, "/book", {"token_id": token}, live=True)
+
+    def trades(self, condition: str, cursor: str = "") -> Fetched:
+        """One page of a market's fills, newest first, each once on its taker
+        side, from the data API: each fill's wallet and names dropped before
+        it is kept (`trades_kept`); `cursor`, the page before's
+        `next_cursor`."""
+        params = {"condition": condition, "limit": str(TRADES_PAGE)}
+        if cursor:
+            params["cursor"] = cursor
+        return self._get("trades", condition, DATA, "/v2/trades", params, kept=trades_kept)
 
     def last_trade(self, token: str) -> Fetched:
         """A token's last trade's price and side."""

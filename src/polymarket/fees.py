@@ -1,6 +1,19 @@
-"""Polymarket's published taker fee rates by market category, as Polymarket
-states them, with where and when they were read (571's category column;
-task sdk-contract/event-contract-fees-vary-by-market-category).
+"""Polymarket's fees: each market's own, as Gamma states it, falling back to
+its category's published rate (ruling 630, from 0.11.0), and the category
+table itself, as Polymarket states it, with where and when it was read
+(571's category column; task
+sdk-contract/event-contract-fees-vary-by-market-category).
+
+**Per market** (`market_fee`). Gamma states each market's own fee
+(`feeSchedule`: its `rate`, `exponent`, `takerOnly` and `rebateRate`, and
+`feeType`, its name) in the same answer the plugin reads the contract from,
+so it costs no call: that rate applies to the market, and the Fees row says
+so (`source` `market`). Where Gamma states none, the market's category's
+row applies (`category`): the category is the one tag of the market's event
+(`/events/slug/{slug}`, its `tags`, read with the event the plugin already
+reports) whose label is a category of the table -- where none is, or more
+than one, the market has no rate, and says why (`none`), never another
+category's.
 
 Read from docs.polymarket.com, "Fees" (`/trading/fees`), on 2026-10-26:
 "fee = C x feeRate x p x (1 - p)", C the shares traded and p their price;
@@ -21,7 +34,9 @@ plugin: a newer page is read and dated again at the plugin's next version.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -34,6 +49,20 @@ class Rate:
     taker: str
     maker: str
     maker_rebate: str = ""
+
+
+@dataclass(frozen=True)
+class MarketFee:
+    """One market's fee as it applies: the contract (the outcome token) it
+    is for, its taker rate as text ("" where none applies), where that rate
+    comes from -- `market` (Gamma's `feeSchedule`), `category` (the
+    category table's row) or `none` -- and what the venue said, in its
+    words."""
+
+    code: str
+    taker: str
+    source: str
+    said: str
 
 
 @dataclass(frozen=True)
@@ -50,6 +79,8 @@ class Fees:
     per_market: str = ""
     #: Why a rate is left out, where the schedule could not be read.
     not_read: str = ""
+    #: Each contract served's fee as it applies (from 0.11.0, ruling 630).
+    markets: list[MarketFee] = field(default_factory=list)
 
 
 SOURCE = "https://docs.polymarket.com/trading/fees"
@@ -75,7 +106,46 @@ FEES = Fees(
     ],
     makers="never charged",
     per_market=(
-        "Gamma states each market's own fee (feeSchedule, feeType), which can differ from "
-        "its category's row; a market's own applies to it"
+        "each market's own fee as Gamma states it (feeSchedule, feeType) applies to it; "
+        "where it states none, its event's category's row; where no tag is one category, "
+        "no rate"
     ),
 )
+
+#: Each category's row by its name.
+BY_CATEGORY = {r.category: r for r in FEES.rates}
+
+
+def stated(body: Mapping[str, Any]) -> str | None:
+    """A Gamma market's own fee in its words -- its taker rate and how Gamma
+    states the rest -- or None where it states no `feeSchedule`."""
+    schedule = body.get("feeSchedule")
+    if not isinstance(schedule, Mapping) or schedule.get("rate") is None:
+        return None
+    parts = [f"rate {schedule.get('rate')}"]
+    for key in ("exponent", "takerOnly", "rebateRate"):
+        if key in schedule:
+            parts.append(f"{key} {str(schedule[key]).lower()}")
+    if body.get("feeType"):
+        parts.append(f"feeType {body['feeType']}")
+    return ", ".join(parts)
+
+
+def market_fee(code: str, said: str | None, tags: Sequence[str] | None) -> MarketFee:
+    """The fee applying to one contract: its market's own (`said`, as
+    `stated` read it), else its event's category's row by the event's tag
+    labels (`tags`; None where the event is not read yet)."""
+    if said is not None:
+        return MarketFee(code, said.split(",")[0].removeprefix("rate ").strip(), "market", said)
+    if tags is None:
+        return MarketFee(code, "", "none", "no feeSchedule; its event's category not read yet")
+    found = sorted({t for t in tags if t in BY_CATEGORY})
+    if len(found) != 1:
+        why = (
+            "no tag is a category"
+            if not found
+            else "tags of several categories: " + ", ".join(found)
+        )
+        return MarketFee(code, "", "none", f"no feeSchedule; {why}")
+    row = BY_CATEGORY[found[0]]
+    return MarketFee(code, row.taker, "category", f"no feeSchedule; category {row.category}")

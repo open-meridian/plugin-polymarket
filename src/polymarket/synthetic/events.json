@@ -136,6 +136,18 @@
     ],
     "groupItemTitle": "A synthetic draw"
    }
+  ],
+  "tags": [
+   {
+    "id": "1",
+    "label": "Sports",
+    "slug": "sports"
+   },
+   {
+    "id": "2",
+    "label": "Synthetic",
+    "slug": "synthetic"
+   }
   ]
  },
  "synthetic-mayor": {
@@ -277,6 +289,13 @@
     "negRiskOther": true
    }
   ],
-  "negRiskAugmented": true
+  "negRiskAugmented": true,
+  "tags": [
+   {
+    "id": "3",
+    "label": "Politics",
+    "slug": "politics"
+   }
+  ]
  }
 }

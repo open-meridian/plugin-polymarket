@@ -31,19 +31,27 @@ Polymarket's vocabulary is read.
   `outcomePrices` state what each token settles at -- one pUSD, nothing, or
   half for an "Unknown/50-50" resolution -- each exactly 1, 0 or 0.5 and
   the market's adding up to one. The token's outcome is its own: a NO token
-  of a market resolved YES pays nothing. Its stage is final: a UMA
-  resolution, once made, is reported on chain and redeemed, and Polymarket
-  states none between a proposal and it. A proposal (`proposed`, in its
-  2-hour challenge period) and a dispute (`disputed`) state their stage but
-  never their answer -- Gamma's `outcomePrices` stay the book's while one
-  stands -- so nothing is recorded for either: the plugin records a
-  Polymarket outcome at its final stage alone (approved 2026-10-13 as a
-  plugin's choice within contract v23). Polymarket's word, kept as
-  reported, is the token's own stated price (`polymarket:outcomePrices`),
-  with each outcome and its price as text. Polymarket states no time of
-  resolution or of payout: the outcome is valid from when the answer first
-  stating it arrived, and its payout time is left 0 (holders redeem their
-  tokens themselves).
+  of a market resolved YES pays nothing. That stage is final: a UMA
+  resolution, once made, is reported on chain and redeemed. Polymarket's
+  word, kept as reported, is the token's own stated price
+  (`polymarket:outcomePrices`), with each outcome and its price as text.
+  Polymarket states no time of resolution or of payout: the outcome is
+  valid from when the answer first stating it arrived, and its payout time
+  is left 0 (holders redeem their tokens themselves).
+- **A proposal and a dispute** (from 0.11.0; ruling 622). Gamma states
+  their stage (`proposed`, in its challenge period; `disputed`) but never
+  their answer -- `outcomePrices` stay the book's while one stands. Where
+  the deployment admin has entered a Polygon RPC URL, the answer is read
+  from UMA's oracle on chain (uma.py): the proposed stage with the price
+  proposed as this token's settlement value, valid from the proposal's
+  time, its challenge window's end (`challenge_ends_at_ns`) the request's
+  expiration; the disputed stage with the price disputed and no window;
+  the plugin's word for both the oracle's price as it holds it
+  (`uma:proposedPrice`, `1000000000000000000` paying the market's first
+  outcome). The oracle's prices pay the market's outcomes in Gamma's order
+  of them (`outcomes`, `clobTokenIds`), the adapter's payout slots. Without
+  the setting, nothing is recorded for either, as before 0.11.0: a
+  Polymarket outcome at its final stage alone.
 - **The event** (contract v26; W3.29) is Gamma's, by its slug
   (`/events/slug/{slug}`), found from the market of the contract's
   condition (`/markets?condition_ids=`, its `events`): its slug its
@@ -73,14 +81,21 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import logging
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from decimal import Decimal
 from typing import Any
 
 from meridian.roles.data import NANOS_PER_SECOND, Endpoint, Limits, Session, Unread, number
 from meridian.roles.data.event_contracts import (
+    DAY,
+    DISPUTED,
     FINAL,
+    HOUR,
+    PROPOSED,
+    Candle,
     Cash,
     Contract,
     Event,
@@ -89,17 +104,27 @@ from meridian.roles.data.event_contracts import (
     Top,
 )
 
-from .venue import BURST, CLOB, GAMMA, NOT_FOUND, RATE_PER_SECOND, Polymarket, VenueError
+from . import fees, uma
+from .venue import (
+    BURST,
+    CLOB,
+    DATA,
+    GAMMA,
+    NOT_FOUND,
+    RATE_PER_SECOND,
+    Fetched,
+    Polymarket,
+    VenueError,
+)
+
+log = logging.getLogger("polymarket")
 
 VENUE = "polymarket"
 NAME = "Polymarket"
 #: What the venue entitles this plugin to: its public market data, no key.
 ENTITLED = "Public market data: a contract is read only for a subject the lake asked for"
 #: What each outcome token is and pays, said on the Datasets page.
-VENDOR_NOTE = (
-    "Each outcome is its own token and contract, paying one pUSD, Polymarket's collateral "
-    "token, if it is the result."
-)
+VENDOR_NOTE = "Each outcome is its own token and contract."
 #: Polymarket in the venue master: its own code, as a symbol.
 VENUE_IDENTIFIERS: tuple[tuple[str, str, str], ...] = (("symbol", "polymarket", "polymarket"),)
 #: pUSD on Polygon, by its CAIP-19 (ruling 550): the contract
@@ -182,6 +207,87 @@ def resolution(token: str, body: Mapping[str, Any]) -> Resolution | None:
     return Resolution(
         stage=FINAL, value=read[index], scheme=OUTCOME_PRICES, word=prices[index], text=text
     )
+
+
+#: Gamma's word for a market's stage while its resolution stands open.
+OPEN_STAGES = {"proposed": PROPOSED, "disputed": DISPUTED}
+
+
+def staged(token: str, body: Mapping[str, Any], said: uma.Proposal | None) -> Resolution | None:
+    """The token's proposed or disputed stage, from what UMA's oracle states
+    of its market's request (`said`); None where Gamma states neither stage,
+    or the oracle states no proposal and Gamma no dispute. A dispute whose
+    request the adapter has sent again, nothing proposed on it yet, states
+    the stage and no answer: the answer recorded last stands."""
+    stage = OPEN_STAGES.get(str(body.get("umaResolutionStatus") or "").lower())
+    tokens, outcomes = _listed(body.get("clobTokenIds")), _listed(body.get("outcomes"))
+    if stage is None or said is None or token not in tokens:
+        return None
+    if not said.proposed:
+        return Resolution(stage=DISPUTED, value=None) if stage == DISPUTED else None
+    paid = uma.payouts(said.price, len(tokens))
+    word = str(said.price)
+    if paid is None:
+        return Resolution(
+            stage=DISPUTED if said.disputed else PROPOSED,
+            value=None,
+            unread=(Unread("uma.proposedPrice", word),),
+        )
+    text = ", ".join(f"{o} {p}" for o, p in zip(outcomes, paid, strict=False))
+    if said.disputed:
+        return Resolution(
+            stage=DISPUTED,
+            value=paid[tokens.index(token)],
+            scheme=uma.PROPOSED_PRICE,
+            word=word,
+            text=f"disputed: {text}",
+        )
+    return Resolution(
+        stage=PROPOSED,
+        value=paid[tokens.index(token)],
+        scheme=uma.PROPOSED_PRICE,
+        word=word,
+        text=f"proposed: {text}",
+        determined_at_ns=uma.seconds_ns(said.proposed_at),
+        challenge_ends_at_ns=uma.seconds_ns(said.expires_at),
+    )
+
+
+def candles(
+    code: str, interval: str, fills: Sequence[Mapping[str, Any]], raw_keys: Sequence[str],
+    first_ns: int, until_ns: int,
+) -> list[Candle]:  # fmt: skip
+    """A token's candles of `interval` -- an hour, or a UTC day, its
+    declared day -- built from the market's fills, oldest first, each the
+    token's own and within [`first_ns`, `until_ns`): open the first fill's
+    price, close the last's, volume the tokens traded, the fills counted.
+    No volume-weighted price is stated (the a-daily-bar case leaves it
+    unset). `raw_keys[i]` is the record fill i was kept in."""
+    width = 3_600 if interval == HOUR else 86_400
+    held: dict[int, list[tuple[Decimal, Decimal, str]]] = {}
+    for fill, key in zip(fills, raw_keys, strict=True):
+        if str(fill.get("token_id")) != code:
+            continue
+        price, size, at = number(fill.get("price")), number(fill.get("size")), fill.get("timestamp")
+        if price is None or size is None or not isinstance(at, int | Decimal):
+            continue
+        seconds = int(at)
+        if not first_ns <= seconds * NANOS_PER_SECOND < until_ns:
+            continue
+        held.setdefault(seconds - seconds % width, []).append((price, size, key))
+    made: list[Candle] = []
+    for start, traded in sorted(held.items()):
+        end_ns = (start + width) * NANOS_PER_SECOND
+        if start * NANOS_PER_SECOND < first_ns or end_ns > until_ns:
+            continue
+        prices = [p for p, _, _ in traded]
+        made.append(Candle(
+            code=code, start_ns=start * NANOS_PER_SECOND, end_ns=end_ns,
+            open=prices[0], high=max(prices), low=min(prices), close=prices[-1],
+            volume=sum((s for _, s, _ in traded), Decimal(0)), trade_count=len(traded),
+            raw_key=traded[-1][2],
+        ))  # fmt: skip
+    return made
 
 
 def contract(
@@ -324,6 +430,15 @@ def tick(of: Contract, body: Mapping[str, Any], raw_key: str, received_ns: int) 
                 unread=unread)  # fmt: skip
 
 
+#: The most pages of a market's fills one read of its bars walks back: a
+#: market trading more than this in the window asked is kept from where the
+#: read reached, its earlier intervals left unread.
+MOST_TRADE_PAGES = 20
+#: How long a market's fills read for its bars answer its other token and
+#: interval asked in the same pass, in nanoseconds.
+_FILLS_HELD_NS = 60 * NANOS_PER_SECOND
+
+
 class PolymarketMarket:
     """Polymarket's market data, as the shared data plugin's work asks for it."""
 
@@ -332,26 +447,72 @@ class PolymarketMarket:
     venue_identifiers = VENUE_IDENTIFIERS
     cash = CASH
 
-    def __init__(self, client: Polymarket, mode: str = "live") -> None:
+    def __init__(
+        self, client: Polymarket, mode: str = "live", chain: uma.Uma | None = None
+    ) -> None:
         self.client = client
         #: Each condition's event slug, once read: a condition's event does
         #: not change.
         self._slugs: dict[str, str] = {}
+        #: Each token's market's own fee as Gamma states it (None: none),
+        #: and each condition's event's tag labels, as last read (ruling 630).
+        self.fees_said: dict[str, str | None] = {}
+        self.tags: dict[str, list[str]] = {}
+        #: A market's fills as last read for its bars: when, the time from
+        #: which they are whole, until, whether the walk was cut short, and
+        #: each fill with its raw record's key.
+        self._fills: dict[str, tuple[int, int, int, bool, list[Mapping[str, Any]], list[str]]] = {}
+        self.mode = mode
         live = mode == "live"
         elsewhere = f"{mode}: no call leaves the deployment"
+        self._elsewhere = elsewhere
         self.session = Session(
             mode=mode,
-            endpoints=(
-                Endpoint(
-                    "Gamma",
-                    GAMMA if live else elsewhere,
-                    "the market a token belongs to, and its outcome",
-                ),
-                Endpoint("CLOB", CLOB if live else elsewhere, "a token's book and last trade"),
-            ),
+            endpoints=(),
             limits=LIMITS,
             health=client.health,
         )
+        self._gamma = Endpoint(
+            "Gamma",
+            GAMMA if live else elsewhere,
+            "the market a token belongs to, its outcome and its fee",
+        )
+        self._clob = Endpoint("CLOB", CLOB if live else elsewhere, "a token's book and last trade")
+        self._data = Endpoint(
+            "Data API",
+            DATA if live else elsewhere,
+            "a market's trades, for its bars: each trade's wallet and names dropped before kept",
+        )
+        self.chain: uma.Uma | None = None
+        self.read_on_chain(chain)
+
+    def read_on_chain(self, chain: uma.Uma | None) -> None:
+        """Read proposals and disputes through `chain`, or none (ruling
+        622): the Connection says which, and never the RPC's URL."""
+        self.chain = chain
+        if chain is None:
+            said = "not set: outcomes are recorded final only"
+        elif self.mode == "live":
+            said = "set by the deployment admin (secret)"
+        else:
+            said = self._elsewhere
+        self.session.endpoints = (
+            self._gamma,
+            self._clob,
+            self._data,
+            Endpoint("Polygon RPC", said, "UMA's proposals and disputes, read only"),
+        )
+
+    def _staged(self, token: str, body: Mapping[str, Any]) -> Resolution | None:
+        """A proposal's or a dispute's stage from UMA's oracle, where Gamma
+        states one, the RPC is set and the market names its question."""
+        status = str(body.get("umaResolutionStatus") or "").lower()
+        if self.chain is None or status not in OPEN_STAGES:
+            return None
+        asked = uma.question_of(body)
+        if asked is None:
+            return None
+        return staged(token, body, self.chain.proposal(*asked))
 
     def contract(self, code: str, watching: bool = False) -> Contract | None:
         try:
@@ -365,6 +526,17 @@ class PolymarketMarket:
             if isinstance(body, Mapping) and (
                 read := contract(code, body, fetched.raw_key, fetched.received_at_ns)
             ):
+                self.fees_said[code] = fees.stated(body)
+                if read.resolution is None:
+                    try:
+                        open_stage = self._staged(code, body)
+                    except (uma.ChainError, ValueError, IndexError) as failed:
+                        # Said, never raised: the contract is read without it,
+                        # and its stage asked again on its next read.
+                        log.warning("%s's stage not read on chain: %s", code, failed)
+                        open_stage = None
+                    if open_stage is not None:
+                        read = replace(read, resolution=open_stage)
                 return read
         return None
 
@@ -372,12 +544,13 @@ class PolymarketMarket:
         """The event a contract belongs to, by its reference (the contract's
         `market`, its condition ID): the condition's market read once for
         its event's slug, then the event; None where Polymarket names
-        none."""
+        none. Its tags' labels are kept for its markets' fee category."""
         slug = self._slugs.get(ref)
         try:
             if slug is None:
                 slug = event_slug(self.client.condition(ref).value)
                 if not slug:
+                    self.tags[ref] = []  # no event: no tag, no category
                     return None
                 self._slugs[ref] = slug
             fetched = self.client.event(slug)
@@ -387,7 +560,15 @@ class PolymarketMarket:
             raise
         if not isinstance(fetched.value, Mapping):
             return None
+        tags = fetched.value.get("tags")
+        listed = tags if isinstance(tags, list) else []
+        self.tags[ref] = [str(t.get("label")) for t in listed if isinstance(t, Mapping)]
         return event(fetched.value, fetched.raw_key, fetched.received_at_ns)
+
+    def fee(self, of: Contract) -> fees.MarketFee:
+        """The fee applying to a contract (ruling 630): its market's own,
+        else its category's row, else none, with why."""
+        return fees.market_fee(of.code, self.fees_said.get(of.code), self.tags.get(of.market))
 
     def last(self, of: Contract) -> Tick:
         fetched = self.client.last_trade(of.code)
@@ -396,3 +577,56 @@ class PolymarketMarket:
     def top(self, of: Contract) -> Top:
         fetched = self.client.book(of.code)
         return top(of, fetched.value, fetched.raw_key, fetched.received_at_ns)
+
+    def _market_fills(
+        self, condition: str, first_ns: int, until_ns: int
+    ) -> tuple[int, list[Mapping[str, Any]], list[str]]:
+        """A market's fills from its UTC day holding `first_ns`, oldest
+        first, each with its raw record's key, and the time from which they
+        are whole: `first_ns`'s day, or where the walk stopped. One read
+        answers both tokens and both intervals asked within a minute."""
+        now = self.client.clock_ns()
+        day_ns = 86_400 * NANOS_PER_SECOND
+        start = first_ns - first_ns % day_ns
+        held = self._fills.get(condition)
+        # A read held a minute answers a window it covers, or any, where its
+        # walk was cut short: reading again would stop at the same place.
+        if held is not None and now - held[0] <= _FILLS_HELD_NS and held[2] >= until_ns \
+                and (held[1] <= start or held[3]):  # fmt: skip
+            return max(held[1], start), held[4], held[5]
+        fills: list[Mapping[str, Any]] = []
+        keys: list[str] = []
+        cursor, whole_from, pages, cut = "", start, 0, False
+        while True:
+            fetched: Fetched = self.client.trades(condition, cursor)
+            pages += 1
+            page = fetched.value if isinstance(fetched.value, Mapping) else {}
+            data = page.get("data")
+            rows = [f for f in data if isinstance(f, Mapping)] if isinstance(data, list) else []
+            fills += rows
+            keys += [fetched.raw_key] * len(rows)
+            times = [int(f["timestamp"]) for f in rows if isinstance(f.get("timestamp"), int)]
+            if times and min(times) * NANOS_PER_SECOND < start:
+                break
+            said = page.get("pagination")
+            cursor = str(said.get("next_cursor") or "") if isinstance(said, Mapping) else ""
+            if not cursor:
+                break
+            if pages >= MOST_TRADE_PAGES:
+                # Whole only after the oldest second read, which may go on.
+                oldest = min(times) if times else until_ns // NANOS_PER_SECOND
+                whole_from, cut = (oldest + 1) * NANOS_PER_SECOND, True
+                break
+        fills.reverse()
+        keys.reverse()
+        self._fills[condition] = (now, whole_from, until_ns, cut, fills, keys)
+        return whole_from, fills, keys
+
+    def bars(self, of: Contract, interval: str, first_ns: int, until_ns: int) -> list[Candle]:
+        """A token's hourly or daily (UTC) candles from `first_ns` to
+        `until_ns`, built from its market's public trades (ruling 624):
+        each fill's wallet and names dropped before it was kept."""
+        if interval not in (HOUR, DAY) or not of.market:
+            return []
+        whole_from, fills, keys = self._market_fills(of.market, first_ns, until_ns)
+        return candles(of.code, interval, fills, keys, max(first_ns, whole_from), until_ns)

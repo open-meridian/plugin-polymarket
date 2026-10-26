@@ -7,24 +7,13 @@ tests/venue_cases.py names Polymarket's synthetic exchange for each."""
 from __future__ import annotations
 
 from meridian.roles.data.testing import EventContractsChecks
-from meridian.suites import names, run
+from meridian.suites import run
 
 import venue_cases
 
 
 class TestEventContracts(EventContractsChecks):
     venue = venue_cases
-
-    def test_every_case_the_venue_presents_passes_unchanged(self) -> None:
-        """The SDK's check, over this plugin's producers: its feed delay is
-        measured on Polymarket's quote, which states its time, since its last
-        trade states none (venue_cases.producers)."""
-        v = venue_cases
-        report = run("data", v.producers(), not_presented=self.not_presented(),
-                     instance_id=v.VENUE)  # fmt: skip
-        assert report.passed, report.failures
-        expected = len(list(names("data"))) - len(self.not_presented())
-        assert len(report.passed_cases) == expected
 
 
 def test_the_data_suite_passes_unchanged() -> None:

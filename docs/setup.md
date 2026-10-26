@@ -5,6 +5,13 @@
 Upload and launch the plugin as any other. It asks for the `data` role and
 storage for its raw responses, and no key.
 
+To record a resolution while it is proposed or disputed, with its challenge
+window's end, enter a **Polygon RPC URL** in its settings: a Polygon
+JSON-RPC endpoint from a provider you choose. It is a secret -- a provider's
+URL often holds its key -- never shown back, logged or kept beside the
+plugin's records, and the plugin only reads through it. Left empty, the
+plugin records outcomes once final.
+
 ## 2. License its datasets
 
 On the dashboard's **Data sources** page, the plugin's datasets are listed
@@ -12,6 +19,7 @@ with their default licences:
 
 - `<instance>:live`: kept two days.
 - `<instance>:outcomes`: kept.
+- `<instance>:bars`: kept.
 
 The default says nothing about Polymarket's terms. Set the deployment's
 licence there, with a note saying why, as you and the people using the

@@ -1,0 +1,29 @@
+{
+ "adapters": {
+  "0xadadadadadadadadadadadadadadadadadadadad": {
+   "oracle": "0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+   "questions": {
+    "0x7171717171717171717171717171717171717171717171717171717171717171": {
+     "requested": 1791561600,
+     "reward": 5000000,
+     "bond": 500000000,
+     "liveness": 0,
+     "ancillary": "q: title: Will the synthetic keeper keep a synthetic clean sheet?, description: Synthetic: no such market exists.",
+     "request": {
+      "proposer": "0x5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "price": "1000000000000000000",
+      "expires": 1791637200,
+      "bond": 500000000,
+      "disputer": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"
+     }
+    }
+   }
+  }
+ },
+ "oracles": {
+  "0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c": {
+   "defaultLiveness": 7200,
+   "managed": true
+  }
+ }
+}

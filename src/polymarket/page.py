@@ -8,15 +8,20 @@ or size is on either page; viewing prices is for the reading roles.
 
 - **Connection** (`/`, `read_connection`): "Key" -- Live, or Sample data;
   "No key needed"; what Polymarket entitles it to; the venue master's ID it
-  resolved -- "Limits and use", with, from 0.10.0, "Fees": Polymarket's
-  published taker fee rate by market category, its source and the day it
-  was read (fees.py), for the options sample's fee schedule to take -- and
-  "Stream": "Does not stream", since it reads each contract when it is
-  wanted, at most once a second.
-- **Datasets** (`/datasets`, `read_datasets`): "Served" (`live`, and
-  `outcomes`), "Wants" (searched and paged), "Subjects", then a section under
-  Polymarket's name: the contract map, the cash its prices and payouts are in,
-  each contract's payout, and how Polymarket's sides make a contract.
+  resolved, and its endpoints: Gamma, the CLOB, from 0.11.0 the data API
+  (trades, for bars) and the Polygon RPC (set or not, never its URL) --
+  "Limits and use", with, from 0.10.0, "Fees": Polymarket's published taker
+  fee rate by market category, its source and the day it was read
+  (fees.py), and from 0.11.0 which applies to each contract served -- its
+  market's own as Gamma states it, else its category's, else none (ruling
+  630) -- for the options sample's fee schedule to take -- and "Stream":
+  "Does not stream", since it reads each contract when it is wanted, at
+  most once a second.
+- **Datasets** (`/datasets`, `read_datasets`): "Served" (`live`,
+  `outcomes`, and from 0.11.0 `bars`), "Wants" (searched and paged),
+  "Subjects", then a section under Polymarket's name: the contract map,
+  the cash its prices and payouts are in, each contract's payout, and how
+  Polymarket's sides make a contract.
 
 Each page declares the record it renders (`answers=`), so each is also a
 read tool on the deployment's MCP surface answering the same record.
@@ -24,7 +29,7 @@ read tool on the deployment's MCP surface answering the same record.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import meridian
@@ -32,7 +37,7 @@ from meridian import Figure
 from meridian.roles.data import event_contracts
 
 from .convert import ENTITLED as ENTITLED
-from .convert import NAME, VENDOR_NOTE, VENUE
+from .convert import NAME, VENDOR_NOTE, VENUE, PolymarketMarket
 from .declared import CATALOGUE
 from .fees import FEES, Fees
 
@@ -46,7 +51,8 @@ pages = meridian.Pages(TITLE, kit=KIT, templates=Path(__file__).parent / "templa
 @dataclass(frozen=True)
 class ConnectionRead(event_contracts.ConnectionRead):
     """The event-contract venue's Connection, and Polymarket's published
-    taker fee rates by market category (fees.py; from 0.10.0)."""
+    taker fee rates by market category (fees.py; from 0.10.0) with, from
+    0.11.0, the fee applying to each contract served."""
 
     fees: Fees = field(default_factory=Fees)
 
@@ -63,9 +69,20 @@ def hold(feed: event_contracts.Feed) -> None:
     HELD.feed = feed
 
 
+def fees_now() -> Fees:
+    """The published schedule, and the fee applying to each contract served
+    (ruling 630), as its market last stated it."""
+    feed = HELD.feed
+    market = feed.market if feed is not None else None
+    if not isinstance(market, PolymarketMarket):
+        return FEES
+    applying = [market.fee(m.contract) for m in feed.contracts.mapped()]  # type: ignore[union-attr]
+    return replace(FEES, markets=sorted(applying, key=lambda f: f.code))
+
+
 def connection_now() -> ConnectionRead:
     read = event_contracts.connection_read(HELD.feed, NAME, ENTITLED)
-    return ConnectionRead(**vars(read), fees=FEES)
+    return ConnectionRead(**vars(read), fees=fees_now())
 
 
 def datasets_now() -> event_contracts.DatasetsRead:
@@ -81,10 +98,12 @@ def datasets_now() -> event_contracts.DatasetsRead:
 )
 def connection(request: meridian.Request) -> meridian.Response:
     """How the plugin reaches Polymarket: the mode, no key needed, what Polymarket
-    entitles it to and the venue master's ID it resolved; its limits and
-    what the plugin spends of them, its calls, the last call and the last
-    error, and Polymarket's published taker fee rate by market category,
-    with its source and the day it was read; and that it does not stream."""
+    entitles it to and the venue master's ID it resolved, and its endpoints
+    -- whether a Polygon RPC is set, never its URL; its limits and what the
+    plugin spends of them, its calls, the last call and the last error, and
+    Polymarket's published taker fee rate by market category, with its
+    source and the day it was read, and which fee applies to each contract
+    served; and that it does not stream."""
     return pages.answer("polymarket/connection.html", connection_now())
 
 
