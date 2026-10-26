@@ -458,9 +458,10 @@ class PolymarketMarket:
         #: and each condition's event's tag labels, as last read (ruling 630).
         self.fees_said: dict[str, str | None] = {}
         self.tags: dict[str, list[str]] = {}
-        #: A market's fills as last read for its bars: when, the window
-        #: they cover from, until, and each fill with its raw record's key.
-        self._fills: dict[str, tuple[int, int, int, list[Mapping[str, Any]], list[str]]] = {}
+        #: A market's fills as last read for its bars: when, the time from
+        #: which they are whole, until, whether the walk was cut short, and
+        #: each fill with its raw record's key.
+        self._fills: dict[str, tuple[int, int, int, bool, list[Mapping[str, Any]], list[str]]] = {}
         self.mode = mode
         live = mode == "live"
         elsewhere = f"{mode}: no call leaves the deployment"
@@ -588,12 +589,14 @@ class PolymarketMarket:
         day_ns = 86_400 * NANOS_PER_SECOND
         start = first_ns - first_ns % day_ns
         held = self._fills.get(condition)
-        if held is not None and now - held[0] <= _FILLS_HELD_NS and held[1] <= start \
-                and held[2] >= until_ns:  # fmt: skip
-            return max(held[1], start), held[3], held[4]
+        # A read held a minute answers a window it covers, or any, where its
+        # walk was cut short: reading again would stop at the same place.
+        if held is not None and now - held[0] <= _FILLS_HELD_NS and held[2] >= until_ns \
+                and (held[1] <= start or held[3]):  # fmt: skip
+            return max(held[1], start), held[4], held[5]
         fills: list[Mapping[str, Any]] = []
         keys: list[str] = []
-        cursor, whole_from, pages = "", start, 0
+        cursor, whole_from, pages, cut = "", start, 0, False
         while True:
             fetched: Fetched = self.client.trades(condition, cursor)
             pages += 1
@@ -612,11 +615,11 @@ class PolymarketMarket:
             if pages >= MOST_TRADE_PAGES:
                 # Whole only after the oldest second read, which may go on.
                 oldest = min(times) if times else until_ns // NANOS_PER_SECOND
-                whole_from = (oldest + 1) * NANOS_PER_SECOND
+                whole_from, cut = (oldest + 1) * NANOS_PER_SECOND, True
                 break
         fills.reverse()
         keys.reverse()
-        self._fills[condition] = (now, whole_from, until_ns, fills, keys)
+        self._fills[condition] = (now, whole_from, until_ns, cut, fills, keys)
         return whole_from, fills, keys
 
     def bars(self, of: Contract, interval: str, first_ns: int, until_ns: int) -> list[Candle]:

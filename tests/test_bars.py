@@ -111,6 +111,10 @@ def test_a_walk_cut_short_keeps_only_the_intervals_it_read_whole(tmp_path: Path)
     oldest = start + 86_400 - 600 * MOST_TRADE_PAGES
     assert made and all(c.start_ns > oldest * 10**9 for c in made)
     assert market.session.health.calls == MOST_TRADE_PAGES
+    days = market.bars(contract, DAY, (start - 86_400) * 10**9, (start + 86_400) * 10**9)
+    assert days == [] and market.session.health.calls == MOST_TRADE_PAGES, (
+        "the day asked after reads the walk held, cut short as before"
+    )
 
 
 def test_a_candle_spans_its_interval_and_holds_its_tokens_fills_alone() -> None:
