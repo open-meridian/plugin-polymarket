@@ -41,7 +41,7 @@ on core v28's harness.
   applies to each contract served -- its market's own as Gamma states it
   (`feeSchedule`, `feeType`), else the category table's row for the one
   category its event's tags name, else none and why, never another
-  category's -- each contract's a tap away and in `read_connection`'s
+  category's -- the first three a tap away and each in `read_connection`'s
   `fees.markets` (`code`, `taker`, `source` `market`/`category`/`none`,
   `said`). No call added: the market's fee is in the Gamma answer it reads,
   its event's tags in the event it reports.

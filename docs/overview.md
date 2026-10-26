@@ -96,7 +96,7 @@ combo pays the Combos rate. Polymarket also states each market's own fee,
 which can differ from its category's row and applies to that market: the
 row says how many of the contracts it serves take their market's own fee,
 how many their category's (where Polymarket states none of the market's
-own) and how many have no rate, with each contract's a tap away. The
+own) and how many have no rate, with the first three contracts' a tap away. The
 options sample's fee schedule takes these rates with this source and date;
 a later schedule is read again at the plugin's next version.
 

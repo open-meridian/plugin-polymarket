@@ -235,7 +235,7 @@ the reading roles.
   makers never charged, read from docs.polymarket.com/trading/fees on
   2026-10-26, for the options sample's fee schedule to take; from 0.11.0
   (ruling 630) it says which applies to each contract served -- "Per
-  market: n own, n by category, n none" -- each contract's a tap away and
+  market: n own, n by category, n none" -- the first three contracts' a tap away, each
   in `read_connection`'s `fees.markets`: its market's own fee as Gamma
   states it (`feeSchedule`, `feeType`; source `market`), else, where Gamma
   states none, the row of the one category its event's tags name
