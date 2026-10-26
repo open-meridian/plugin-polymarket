@@ -75,6 +75,17 @@ An outcome carries no challenge deadline: your pages show "deadline not
 reported". Polymarket's public data does not say when a proposed resolution
 can no longer be challenged, and the plugin never works one out itself.
 
+## Fees
+
+Connection's "Fees" row shows Polymarket's published taker fee rate by
+market category, as read from its fees page (docs.polymarket.com/trading/fees)
+on 2026-10-26: a taker pays the rate times the shares times p x (1 - p), at
+a price p; makers pay none; Geopolitics markets are fee-free, and every
+combo pays the Combos rate. Polymarket also states each market's own fee,
+which can differ from its category's row and applies to that market. The
+options sample's fee schedule takes these rates with this source and date;
+a later schedule is read again at the plugin's next version.
+
 ## Events
 
 For each outcome token it serves, the plugin also reports the Polymarket
