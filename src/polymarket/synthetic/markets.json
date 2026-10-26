@@ -276,7 +276,14 @@
      "negRisk": true
     }
    ],
-   "groupItemTitle": "The synthetic team"
+   "groupItemTitle": "The synthetic team",
+   "feeSchedule": {
+    "exponent": 1,
+    "rate": 0.05,
+    "takerOnly": true,
+    "rebateRate": 0.15
+   },
+   "feeType": "sports_fees_v3"
   }
  ],
  "60000000000000000000000000000000000000000000000000000000000000000000000000067": [
@@ -391,12 +398,19 @@
      "negRisk": true
     }
    ],
-   "groupItemTitle": "The synthetic team"
+   "groupItemTitle": "The synthetic team",
+   "feeSchedule": {
+    "exponent": 1,
+    "rate": 0.05,
+    "takerOnly": true,
+    "rebateRate": 0.15
+   },
+   "feeType": "sports_fees_v3"
   }
  ],
  "80000000000000000000000000000000000000000000000000000000000000000000000000081": [
   {
-   "acceptingOrders": true,
+   "acceptingOrders": false,
    "active": true,
    "archived": false,
    "clobTokenIds": "[\"80000000000000000000000000000000000000000000000000000000000000000000000000081\", \"80000000000000000000000000000000000000000000000000000000000000000000000000082\"]",
@@ -426,12 +440,14 @@
    "umaResolutionStatuses": "[\"proposed\"]",
    "updatedAt": "2026-10-09T18:02:07.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "resolvedBy": "0xadadadadadadadadadadadadadadadadadadadad",
+   "questionID": "0x7171717171717171717171717171717171717171717171717171717171717171"
   }
  ],
  "80000000000000000000000000000000000000000000000000000000000000000000000000082": [
   {
-   "acceptingOrders": true,
+   "acceptingOrders": false,
    "active": true,
    "archived": false,
    "clobTokenIds": "[\"80000000000000000000000000000000000000000000000000000000000000000000000000081\", \"80000000000000000000000000000000000000000000000000000000000000000000000000082\"]",
@@ -461,7 +477,9 @@
    "umaResolutionStatuses": "[\"proposed\"]",
    "updatedAt": "2026-10-09T18:02:07.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "resolvedBy": "0xadadadadadadadadadadadadadadadadadadadad",
+   "questionID": "0x7171717171717171717171717171717171717171717171717171717171717171"
   }
  ],
  "90000000000000000000000000000000000000000000000000000000000000000000000000911": [
@@ -958,6 +976,72 @@
    "startDate": "2026-09-01T00:00:00Z",
    "startDateIso": "2026-09-01",
    "updatedAt": "2026-10-10T11:59:00.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5
+  }
+ ],
+ "80000000000000000000000000000000000000000000000000000000000000000000000000085": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"80000000000000000000000000000000000000000000000000000000000000000000000000085\", \"80000000000000000000000000000000000000000000000000000000000000000000000000086\"]",
+   "closed": false,
+   "conditionId": "0x3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-10-09T16:00:00Z",
+   "endDateIso": "2026-10-09",
+   "id": "900015",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": false,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.5\", \"0.5\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will the synthetic referee add synthetic stoppage time?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-the-synthetic-referee-add-synthetic-stoppage-time",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-09T18:02:07.000000Z",
+   "volume": "820311.5",
+   "volumeNum": 820311.5
+  }
+ ],
+ "80000000000000000000000000000000000000000000000000000000000000000000000000086": [
+  {
+   "acceptingOrders": true,
+   "active": true,
+   "archived": false,
+   "clobTokenIds": "[\"80000000000000000000000000000000000000000000000000000000000000000000000000085\", \"80000000000000000000000000000000000000000000000000000000000000000000000000086\"]",
+   "closed": false,
+   "conditionId": "0x3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e",
+   "createdAt": "2026-09-01T00:00:00.000000Z",
+   "description": "Synthetic: this market resolves as its synthetic event does. No such market exists.",
+   "enableOrderBook": true,
+   "endDate": "2026-10-09T16:00:00Z",
+   "endDateIso": "2026-10-09",
+   "id": "900015",
+   "liquidity": "152000.25",
+   "liquidityNum": 152000.25,
+   "marketMakerAddress": "",
+   "negRisk": false,
+   "orderMinSize": 5,
+   "orderPriceMinTickSize": 0.01,
+   "outcomePrices": "[\"0.5\", \"0.5\"]",
+   "outcomes": "[\"Yes\", \"No\"]",
+   "question": "Will the synthetic referee add synthetic stoppage time?",
+   "resolutionSource": "https://example.invalid/synthetic",
+   "restricted": true,
+   "slug": "will-the-synthetic-referee-add-synthetic-stoppage-time",
+   "startDate": "2026-09-01T00:00:00Z",
+   "startDateIso": "2026-09-01",
+   "updatedAt": "2026-10-09T18:02:07.000000Z",
    "volume": "820311.5",
    "volumeNum": 820311.5
   }

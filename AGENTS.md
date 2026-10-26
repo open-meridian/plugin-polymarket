@@ -27,7 +27,7 @@ plugin. Never read or name Polymarket US here.
   answers instead of Polymarket with sample data: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
 - **What every data plugin of an event-contract venue does is the SDK's**
-  (open-meridian 0.33.0; nothing is copied between plugins): naming each
+  (open-meridian 0.33.1; nothing is copied between plugins): naming each
   subject, resolving the cash and the venue, recording prices, quotes and
   outcomes, answering wants and keeping them current, and reporting an
   event's group (contract v26), kept current by `Feed.keep_events`
@@ -64,12 +64,10 @@ plugin. Never read or name Polymarket US here.
   Polymarket states no order on unset. Wants are recorded against
   (`want_id=`) or declined per subject with the reason (`not_covered`,
   `beyond_history`, `source_silent`). A case of the suite about a kind of
-  data the plugin never publishes (its `about`: closes, bars, trades, a
+  data the plugin never publishes (its `about`: closes, trades, a
   currency's rate, a security's price) is named in `not_presented` with why
-  (`tests/venue_cases.py`); every other case is mapped. Of the outcome
-  cases, `restates-a-disputed-outcome` (`about: disputed outcomes`) is not
-  presented: Polymarket states no dispute's answer, so it records final
-  outcomes alone.
+  (`tests/venue_cases.py`); every other case is mapped, from 0.11.0
+  `a-daily-bar` and `restates-a-disputed-outcome` among them.
 - **Outcomes** (contract v23, the lake plan's "vL1c"): `Feed.record_outcomes`
   records each served token's outcome in the `outcomes` dataset, unasked,
   from the token's own side (`pays`, `pays_nothing`, `pays_part`, by its
@@ -77,12 +75,25 @@ plugin. Never read or name Polymarket US here.
   one row key per token (`<token>:outcome`), a new version only when the
   venue's statement changes. `convert.resolution` reads a Gamma market
   resolved (`umaResolutionStatus` `resolved`, closed) into a final outcome
-  from `outcomePrices` (each exactly 1, 0 or 0.5); a proposal or a dispute
-  states no answer and is not recorded. No business date; no `want_id`.
-  `Outcome.challenge_ends_at_ns` (contract v27) stays 0: it is the venue's
-  statement of when the challenge window ends, and Gamma states a
-  proposal's `customLiveness` but no proposal time (the end is UMA's, on
-  chain); never derive it.
+  from `outcomePrices` (each exactly 1, 0 or 0.5). No business date; no
+  `want_id`. From 0.11.0 (ruling 622) a proposal and a dispute are read on
+  chain where the secret setting `polygon_rpc_url` is set: `uma.py` makes
+  read-only `eth_call`s to the adapter Gamma names (`resolvedBy`,
+  `getQuestion` by `questionID` or a negative-risk market's
+  `negRiskRequestID`) and its OptimisticOracleV2 (`getRequest`), and
+  `convert.staged` reads them into the proposed stage (value, proposal time,
+  `challenge_ends_at_ns` the expiration) or the disputed one (no window).
+  The RPC URL is never logged, kept in a raw record or shown; an RPC error
+  says only its kind. No wallet, no signing, no transaction, ever.
+- **Bars** (0.11.0; rulings 624, 625): `PolymarketMarket.bars` builds a
+  token's hourly and UTC-day `Candle`s from its market's data API trades
+  (`venue.trades`, which drops each fill's wallet, profile and transaction
+  before the raw record is kept: `TRADE_FIELDS`); the SDK's
+  `Feed.keep_bars(BARS)` keeps them. No vwap; trades counted.
+- **Fees** (0.11.0; ruling 630): `fees.market_fee` -- a market's own
+  `feeSchedule`, else the one category its event's tags name, else none,
+  never another category's -- for each contract served, on Connection's
+  "Fees" row and in `read_connection`'s `fees.markets`.
 - **A data plugin shows no market data** (ruled 2026-10-03). Its pages are
   the data role's (meridian-design `spec/plugin-pages-follow-their-role.md`):
   Connection and Datasets, under Manage alone, drawn by the SDK's templates for

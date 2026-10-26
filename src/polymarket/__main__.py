@@ -19,6 +19,13 @@ otherwise, so the platform matches or mints the group and keeps a new
 version when its members or flags change. From 0.9.0 (contract v27) that is
 the SDK's `Feed.keep_events`.
 
+From 0.11.0 it keeps each contract served's hourly and daily bars, built
+from Polymarket's public trades (the SDK's `Feed.keep_bars`, open-meridian
+0.33.1; ruling 624), and, where the deployment admin has entered a Polygon
+RPC URL, reads UMA's oracle for a proposal's and a dispute's answer and its
+challenge window (uma.py; ruling 622). The URL is a secret: it is read from
+the settings delivered and never logged.
+
 It holds nothing it cannot lose: Polymarket's raw responses and the contract map
 are kept in the storage the deployment grants it (decisions/028), and a
 restart reads the map back and hears again what the lake wants.
@@ -40,9 +47,10 @@ from meridian.roles.data.event_contracts import ContractMap, Feed
 
 from .convert import CASH, PolymarketMarket
 from .declaration import DECLARATION, PORT
-from .declared import KIND, SAMPLE_DATA, WINDOW_DAYS
+from .declared import BARS, KIND, POLYGON_RPC_URL, SAMPLE_DATA, WINDOW_DAYS
 from .page import figures_now, hold, pages
-from .synthetic import Recorded, Synthetic
+from .synthetic import Recorded, RecordedChain, Synthetic, SyntheticChain
+from .uma import Uma
 from .venue import Polymarket
 
 log = logging.getLogger("polymarket")
@@ -52,16 +60,24 @@ log = logging.getLogger("polymarket")
 RECORDED = "recorded"
 
 
-def market(store: RawStore, synthetic: bool) -> PolymarketMarket:
+def market(store: RawStore, synthetic: bool, rpc_url: str = "") -> PolymarketMarket:
     """Polymarket itself, or with sample data its answers from files: a
     developer's recorded exchanges where storage holds them, else this
-    package's synthetic ones."""
+    package's synthetic ones -- UMA's oracle read on chain through the
+    deployment's RPC where its URL is set, or with sample data from the same
+    files."""
     if not synthetic:
-        return PolymarketMarket(Polymarket(store), "live")
+        client = Polymarket(store)
+        chain = Uma(rpc_url, store, client.health) if rpc_url else None
+        return PolymarketMarket(client, "live", chain)
     recorded = store.root / RECORDED
     if recorded.is_dir():
-        return PolymarketMarket(Polymarket(store, transport=Recorded(recorded)), "recorded")
-    return PolymarketMarket(Polymarket(store, transport=Synthetic()), "synthetic")
+        client = Polymarket(store, transport=Recorded(recorded))
+        chain = Uma("recorded", store, client.health, post=RecordedChain(recorded))
+        return PolymarketMarket(client, "recorded", chain)
+    client = Polymarket(store, transport=Synthetic())
+    chain = Uma("synthetic", store, client.health, post=SyntheticChain())
+    return PolymarketMarket(client, "synthetic", chain)
 
 
 def contract_map(store: RawStore, mode: str) -> ContractMap:
@@ -103,15 +119,25 @@ async def watch_settings(
 async def _apply_settings(
     plugin: meridian.Plugin, feed: Feed, store: RawStore, configured: asyncio.Event
 ) -> None:
+    rpc_held = ""
     async for delivered in plugin.settings():
         values = delivered.values
-        log.info("settings delivered: sample data %s", values.get(SAMPLE_DATA))
+        rpc = values.get(POLYGON_RPC_URL)
+        rpc_url = rpc.strip() if isinstance(rpc, str) else ""
+        # The URL is a secret: whether it is set is said, never its value.
+        log.info("settings delivered: sample data %s, Polygon RPC %s",
+                 values.get(SAMPLE_DATA), "set" if rpc_url else "not set")  # fmt: skip
         synthetic = values.get(SAMPLE_DATA) is True
         mode = feed.market.session.mode
         if synthetic != (mode != "live"):
-            chosen = market(store, synthetic)
+            chosen = market(store, synthetic, rpc_url)
             feed.use(chosen, contract_map(store, chosen.session.mode))
             log.info("answering from %s", chosen.session.mode)
+        elif not synthetic and rpc_url != rpc_held:
+            held = feed.market
+            if isinstance(held, PolymarketMarket):
+                held.read_on_chain(Uma(rpc_url, store, held.client.health) if rpc_url else None)
+        rpc_held = rpc_url
         configured.set()
         await tend_now(plugin, store, values)
 
@@ -142,6 +168,16 @@ async def report_events(feed: Feed, configured: asyncio.Event) -> None:
     does not resolve read again on the next pass."""
     await configured.wait()
     await feed.keep_events()
+
+
+async def keep_bars(feed: Feed, configured: asyncio.Event) -> None:
+    """Once the settings have said where to answer from: each contract
+    served's hourly and daily bars, built from its market's public trades --
+    the SDK's `Feed.keep_bars` (open-meridian 0.33.1), each pass every five
+    minutes, the first reading 30 days back -- on the UTC day the `bars`
+    dataset declares."""
+    await configured.wait()
+    await feed.keep_bars(BARS)
 
 
 async def report_health(plugin: meridian.Plugin, feed: Feed) -> None:
@@ -194,6 +230,7 @@ async def run() -> None:
             asyncio.create_task(feed.keep_current()),
             asyncio.create_task(report_health(plugin, feed)),
             asyncio.create_task(report_events(feed, configured)),
+            asyncio.create_task(keep_bars(feed, configured)),
         ]
         for task in tasks:
             task.add_done_callback(_said)
