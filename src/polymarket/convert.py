@@ -529,7 +529,9 @@ class PolymarketMarket:
                 if read.resolution is None:
                     try:
                         open_stage = self._staged(code, body)
-                    except uma.ChainError as failed:
+                    except (uma.ChainError, ValueError, IndexError) as failed:
+                        # Said, never raised: the contract is read without it,
+                        # and its stage asked again on its next read.
                         log.warning("%s's stage not read on chain: %s", code, failed)
                         open_stage = None
                     if open_stage is not None:

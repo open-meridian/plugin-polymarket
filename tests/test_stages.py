@@ -213,3 +213,15 @@ def test_connection_says_whether_the_rpc_is_set_and_never_its_url(tmp_path: Path
         assert "SECRET-KEY" not in shown and "SECRET-KEY" not in json.dumps(said)
     finally:
         page.HELD.feed = None
+
+
+def test_an_answer_that_does_not_read_leaves_the_contract_read_without_its_stage(
+    tmp_path: Path,
+) -> None:
+    def garbled(url: str, headers: Mapping[str, str], body: bytes) -> Response:
+        return Response(200, {}, b'{"jsonrpc":"2.0","id":1,"result":"0xnot-hex"}')
+
+    market = _market(tmp_path, chain=False)
+    market.read_on_chain(_uma(tmp_path, garbled))
+    read = market.contract(v.PROPOSED)
+    assert read is not None and read.resolution is None
