@@ -177,6 +177,10 @@ async def keep_bars(feed: Feed, configured: asyncio.Event) -> None:
     minutes, the first reading 30 days back -- on the UTC day the `bars`
     dataset declares."""
     await configured.wait()
+    # Nothing is asked -- not even the venue resolved -- until a contract is
+    # served: the lake wanting something of the plugin comes first.
+    while not feed.contracts.mapped():
+        await asyncio.sleep(5)
     await feed.keep_bars(BARS)
 
 
