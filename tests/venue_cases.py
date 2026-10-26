@@ -13,14 +13,23 @@ markets and values; real recordings are never committed (the plan's Q11).
 
 from __future__ import annotations
 
+import sys
 import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from meridian.edge import RawStore
+from meridian.roles.data import Standing, event_contracts
 from meridian.roles.data.event_contracts import Event, Market
-from meridian.roles.data.testing import EVENT_CONTRACTS_NOT_PRESENTED
+from meridian.roles.data.testing import (
+    EVENT_CONTRACTS_NOT_PRESENTED,
+    Instruments,
+    event_contract_producers,
+    feed_delay,
+    held,
+)
+from meridian.suites import Producer
 
 from polymarket import page
 from polymarket.convert import PolymarketMarket
@@ -51,6 +60,9 @@ EXACT = "10000000000000000000000000000000000000000000000000000000000000000000000
 EXACT_LAST = "0.123456789012345678"
 #: A token with bids and no offer.
 ONE_SIDED = "20000000000000000000000000000000000000000000000000000000000000000000000000029"
+#: A token whose book is crossed, its best bid above its best offer: recorded
+#: invalid by the edge (contract v28, ruling 424).
+CROSSED = "20000000000000000000000000000000000000000000000000000000000000000000000000037"
 #: A token of a market of three outcomes, which is not binary.
 NOT_BINARY = "30000000000000000000000000000000000000000000000000000000000000000000000000041"
 #: Polymarket prices in pUSD, its collateral token: never a currency code.
@@ -103,8 +115,9 @@ DRAW = "9" + "0" * 73 + "921"
 #: (`EVENT_CONTRACTS_NOT_PRESENTED`): the rates cases; the dataset's liveness,
 #: since Polymarket is polled over REST and no stream gives a heartbeat;
 #: `queries-the-lake-within-bounds`, about trades, which it records none of;
-#: and the feed delay, about `latency`, which core receives from contract v28
-#: (ruling 518).
+#: from contract v28 the chains and filings cases, and the duplicate and gap
+#: cases, since its quotes are polled and no message is numbered. Its feed
+#: delay is reported (required again from contract v28, ruling 518).
 NOT_PRESENTED = {
     **EVENT_CONTRACTS_NOT_PRESENTED,
     "a-daily-close": "its one dataset publishes live prices and quotes, and no daily closes",
@@ -166,3 +179,29 @@ EVENT_PLACEHOLDERS = event(MAYOR_CONDITION)
 def calls(market: Any) -> list[str]:
     """The URLs the plugin asked of the venue, in order, from its raw records."""
     return [r["request"]["url"] for r in market.client.store.records()]
+
+
+async def _kept_current(recorder: Any, latency: Any) -> None:
+    """A standing want of the base token's quote kept current, its rows'
+    age at the edge recorded. Polymarket's last trade states no time
+    (`/last-trade-price` answers a price and a side), so the SDK's own
+    producer, which stands a want of last prices alone, records no row with
+    a source time; the book states its `timestamp`, and a quote carries it.
+    The same Feed, conversion and exchange as every other case."""
+    store = Instruments().answering(recorder)
+    feed = event_contracts.Feed(
+        recorder, market(NOW_NS), event_contracts.ContractMap(), clock_ns=lambda: NOW_NS
+    )
+    feed.wants.latency = latency
+    subject = await held(store, feed, BASE)
+    feed.standing["WNT-T"] = Standing(
+        "WNT-T", feed.dataset(event_contracts.LIVE), "meridian.v1.Quote", (subject,), (), NOW_NS
+    )
+    await feed.current()
+
+
+def producers() -> dict[str, Producer]:
+    """The SDK's producers for an event-contract venue, its feed delay's
+    over Polymarket's quote (`_kept_current`) rather than its last trade."""
+    made = event_contract_producers(sys.modules[__name__])
+    return {**made, "reports-its-feed-delay": feed_delay(_kept_current)}
