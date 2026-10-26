@@ -65,15 +65,26 @@ dollars only through a price of it, never by assuming one for one.
 Once Polymarket resolves the market of a token a reader asked about, the
 plugin records the token's outcome: whether it pays its one pUSD, pays
 nothing, or pays half (an "Unknown/50-50" resolution), from the token's own
-side, so the NO token of a market resolved YES pays nothing. It records the
-final resolution alone: while a resolution is proposed or disputed,
-Polymarket's public data says so but does not say what was proposed.
-Outcomes are kept by default. Paying the holders of a position is not the
-plugin's: it records what Polymarket resolved.
+side, so the NO token of a market resolved YES pays nothing. Outcomes are
+kept by default. Paying the holders of a position is not the plugin's: it
+records what Polymarket resolved.
 
-An outcome carries no challenge deadline: your pages show "deadline not
-reported". Polymarket's public data does not say when a proposed resolution
-can no longer be challenged, and the plugin never works one out itself.
+Before that, a resolution is proposed, and may be disputed. Polymarket's
+public data says so but not what was proposed: that is on chain, in UMA's
+oracle on Polygon. Where your deployment admin enters a **Polygon RPC URL**
+in the plugin's settings, the plugin reads it there, read only: the answer
+proposed, when it was proposed and when its challenge window ends, then a
+dispute, each a new version of the same outcome. Without the setting it
+records the final resolution alone, and your pages show "deadline not
+reported" for its challenge window.
+
+## Bars
+
+For each outcome token it serves, the plugin keeps hourly and daily (UTC)
+bars -- open, high, low, close, the tokens traded and how many trades --
+built from Polymarket's public trades, first reaching 30 days back. Each
+trade's wallet, profile and transaction are dropped before anything is
+kept: only its price, size, side and time are read.
 
 ## Fees
 
@@ -82,7 +93,10 @@ market category, as read from its fees page (docs.polymarket.com/trading/fees)
 on 2026-10-26: a taker pays the rate times the shares times p x (1 - p), at
 a price p; makers pay none; Geopolitics markets are fee-free, and every
 combo pays the Combos rate. Polymarket also states each market's own fee,
-which can differ from its category's row and applies to that market. The
+which can differ from its category's row and applies to that market: the
+row says how many of the contracts it serves take their market's own fee,
+how many their category's (where Polymarket states none of the market's
+own) and how many have no rate, with each contract's a tap away. The
 options sample's fee schedule takes these rates with this source and date;
 a later schedule is read again at the plugin's next version.
 
@@ -112,4 +126,6 @@ Polymarket's answers, as received, in the storage your deployment gives the
 plugin, for 30 days by default, each price naming the answer it came from.
 Past that window, a day's answers are archived, kept or deleted as you set
 it. Its live dataset's default licence keeps its rows two days; its outcomes
-dataset is kept.
+and bars datasets are kept. A page of trades is kept with each trade's
+wallet and names already dropped, and an on-chain answer with its request
+but never your RPC's URL.

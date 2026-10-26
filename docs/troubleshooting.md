@@ -4,7 +4,21 @@
 
 The Connection page's status says so, with the last error. The plugin waits
 out a rate limit and tries again. Check the deployment can reach
-gamma-api.polymarket.com and clob.polymarket.com.
+gamma-api.polymarket.com, clob.polymarket.com and data-api.polymarket.com.
+
+## Polygon RPC: no answer
+
+With a Polygon RPC URL set, a failed on-chain read shows as the last error
+("Polygon RPC: ..."), never with the URL, and the market is read again on
+its next pass: the proposal is recorded once the RPC answers. Check the URL
+with your provider, and that the deployment can reach it.
+
+## No bars for a contract
+
+Bars are built from the contract's trades: an hour or a day it did not
+trade in has no bar, and one still open is kept once it closes (each pass is
+five minutes). A market trading very heavily keeps the intervals its first
+read reached back to, at most 20 pages of trades.
 
 ## Venue master: not held
 

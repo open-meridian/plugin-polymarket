@@ -5,6 +5,7 @@
 A summary, not legal advice: read the terms themselves, at [polymarket.com](https://polymarket.com), before relying on them.
 
 - Polymarket's terms are for the deployment admin and the people who use the deployment to read, including where they may use Polymarket at all; the plugin's default licence, kept two days, claims nothing about them.
+- The Polygon RPC the plugin reads UMA's oracle through is your deployment's choice of provider, on that provider's terms.
 - A deployment admin states the deployment's own licence on Data sources, which replaces the default.
 
 Nothing here says that a deployment meets them: the licence records what its admin entered.
