@@ -24,7 +24,7 @@
 {% set category = fees.markets|selectattr("source", "equalto", "category")|list|length %}
 {% set unrated = fees.markets|selectattr("source", "equalto", "none")|list|length %}
 {% set applying = ("Per market: " ~ own ~ " own, " ~ category ~ " by category, " ~ unrated ~ " none; ") if fees.markets else "" %}
-{% set each %}{% for m in fees.markets[:8] %}{{ m.code[:12] }}{% if m.code|length > 12 %}...{% endif %} {{ m.taker or "no rate" }} ({{ m.said }}){% if not loop.last %}; {% endif %}{% endfor %}{% if fees.markets|length > 8 %}; and {{ fees.markets|length - 8 }} more, each in read_connection{% endif %}{% endset %}
+{% set each %}{% for m in fees.markets[:3] %}{{ m.code[:12] }}{% if m.code|length > 12 %}...{% endif %} {{ m.taker or "no rate" }} ({{ m.said }}){% if not loop.last %}; {% endif %}{% endfor %}{% if fees.markets|length > 3 %}; and {{ fees.markets|length - 3 }} more, each in read_connection{% endif %}{% endset %}
 {% set note = [fees.not_read, fees.per_market, each, fees.formula, ("read " if fees.rates else "tried ") ~ fees.read_on ~ " at " ~ fees.source]|select|join("; ") %}
 {{ om.row("Fees", applying ~ (("Taker by category: " ~ rates ~ "; makers " ~ fees.makers) if fees.rates else "Not read"), note) }}
 {% endif %}
