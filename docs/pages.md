@@ -13,7 +13,11 @@ same order. Neither shows a price, a side of the book or a size.
   deployment does not hold it.
 - **Limits and use**: what Polymarket allows and what the plugin spends of
   it, how many calls it made and how many met a rate limit and waited it
-  out, the last call and the last error.
+  out, the last call and the last error; and **Fees**: Polymarket's
+  published taker fee rate by market category, the formula it enters and
+  what makers pay, with where it was read and on which day (tap the row for
+  the whole). Each market states its own fee, which applies to it where it
+  differs from its category's.
 - **Stream**: "Does not stream": it reads a contract when it is wanted.
 
 ## Datasets

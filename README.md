@@ -17,12 +17,11 @@ It is one of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
 data suite and its checks for an event-contract venue unchanged against its own conversion
 (meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
-the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.32.3), never copied
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.33.0), never copied
 between them.
 
-**Status.** 0.9.0, built on open-meridian 0.32.3 (contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
-role `data`, and proven against the core it pins, by digest. Not
-released, uploaded or launched anywhere.
+**Status.** 0.10.0, built on open-meridian 0.33.0 (contract v28: its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
+role `data`, and proven against the core it pins, by digest.
 
 ## What it does
 
@@ -155,8 +154,17 @@ cases an event-contract venue never presents are the SDK's list
 rates); `records-a-datasets-liveness` (Polymarket is polled over REST each
 second, and no stream gives a heartbeat to record); and
 `queries-the-lake-within-bounds`, about trades from v27 (it records none).
-`reports-its-feed-delay`, about latency, is not presented under ruling 518:
-core receives ReportLatency from contract v28 (ruling 515). Every other case passes, a price in a stablecoin on the token's
+Contract v28's are the SDK's list too: the option-chain and filings cases
+(it lists no chain and publishes no filing), and
+`a-duplicate-is-recorded-suspicious` and `rows-after-a-gap-are-suspicious`
+(its quotes are polled; no message is numbered).
+`a-crossed-quote-is-recorded-invalid` passes on a synthetic token whose
+book is crossed. `reports-its-feed-delay` (required from contract v28,
+ruling 518) passes on a standing want of the token's quote kept current,
+its rows' age at the edge: Polymarket's last trade states no time, so the
+SDK's own producer, which keeps last prices alone, would age nothing;
+`tests/venue_cases.producers` maps the case to the quote, and
+`tests/test_data_role.py` runs the SDK's check over it. Every other case passes, a price in a stablecoin on the token's
 own instrument and `reads-its-datasets-licences` among them: it reads which
 of its datasets a deployment admin has licensed, on start and each minute.
 
@@ -183,7 +191,13 @@ the reading roles.
   subject the lake asked for) and, the role's row for a source of one venue,
   the venue master's ID it resolved; "Limits and use" -- what Polymarket allows
   and what the plugin spends of it, its calls and the rate-limited ones
-  waited out, the last call and the last error; "Stream" -- "Does not
+  waited out, the last call and the last error, and, from 0.10.0, "Fees":
+  Polymarket's published taker fee rate by market category (Crypto 0.07,
+  Sports 0.05, Politics 0.04, Geopolitics 0, Combos 0.05 and the rest),
+  makers never charged, read from docs.polymarket.com/trading/fees on
+  2026-10-26, for the options sample's fee schedule to take; each market's
+  own fee as Gamma states it (`feeSchedule`, `feeType`) applies to it where
+  it differs (`fees.py`); "Stream" -- "Does not
   stream": it reads a contract when it is wanted, at most once a second.
 - **Datasets**: "Served" -- each dataset (`live`, `outcomes`), its data, how
   its rows arrive, its day, its default terms and whether a deployment admin
