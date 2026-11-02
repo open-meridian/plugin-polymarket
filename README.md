@@ -20,10 +20,10 @@ It is one of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
 data suite and its checks for an event-contract venue unchanged against its own conversion
 (meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
-the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.35.0), never copied
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.35.1), never copied
 between them.
 
-**Status.** 0.12.0, built on open-meridian 0.35.0 (contract v29; from 0.12.0 its work is one class for its role, `Lake` -- the SDK's event-contract feed -- registered with `meridian.run`; contract v28: a proposal's and a dispute's stage read from UMA's oracle on chain, each token's hourly and daily bars from its public trades, the fee applying to each market on Connection, its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
+**Status.** 0.12.0, built on open-meridian 0.35.1 (contract v29; from 0.12.0 its work is one class for its role, `Lake` -- the SDK's event-contract feed -- registered with `meridian.run`; contract v28: a proposal's and a dispute's stage read from UMA's oracle on chain, each token's hourly and daily bars from its public trades, the fee applying to each market on Connection, its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
 role `data`, and proven against the core it pins, by digest.
 
 ## What it does
