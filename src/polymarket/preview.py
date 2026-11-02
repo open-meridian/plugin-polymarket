@@ -82,7 +82,7 @@ async def _worked() -> Feed:
     client = Polymarket(store, transport=Synthetic(), clock_ns=lambda: NOW_NS)
     chain = Uma("synthetic", store, client.health, post=SyntheticChain(), clock_ns=lambda: NOW_NS)
     market = PolymarketMarket(client, "synthetic", chain)
-    feed = Feed(lake, market, ContractMap(), clock_ns=lambda: NOW_NS)
+    feed = lake.bind(Feed(market, ContractMap(), clock_ns=lambda: NOW_NS))
     subjects = list(RECORDS)
     for n in range(30):
         want = ops.ObservationsWantedEvent(
@@ -92,7 +92,7 @@ async def _worked() -> Feed:
             subjects=[ops.SubjectRef(entity_id=subjects[n % 3])],
         )
         lake.answer("ObservationsWanted", _delivering(want))
-        await lake.receive(observations_wanted=feed.on_want)
+        await lake.hear(feed)
     for n, subject in enumerate(subjects[:2]):
         want = ops.ObservationsWantedEvent(
             want_id=f"WNT-L{n}",
@@ -102,7 +102,7 @@ async def _worked() -> Feed:
             standing=True,
         )
         lake.answer("ObservationsWanted", _delivering(want))
-        await lake.receive(observations_wanted=feed.on_want)
+        await lake.hear(feed)
     await feed.keep_events(once=True)
     feed.licensed = frozenset({feed.dataset("live")})
     return feed
@@ -113,7 +113,9 @@ async def _fresh() -> Feed:
     lake = Recorder("polymarket")
     store = RawStore(Path(tempfile.mkdtemp(prefix="polymarket-preview-")))
     client = Polymarket(store, transport=Synthetic(), clock_ns=lambda: NOW_NS)
-    return Feed(lake, PolymarketMarket(client, "synthetic"), ContractMap(), clock_ns=lambda: NOW_NS)
+    return lake.bind(
+        Feed(PolymarketMarket(client, "synthetic"), ContractMap(), clock_ns=lambda: NOW_NS)
+    )
 
 
 def main(argv: list[str]) -> int:

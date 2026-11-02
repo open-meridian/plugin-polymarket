@@ -1,12 +1,12 @@
 """Polymarket's public market data as an Open Meridian data plugin.
 
-It connects to the sidecar it is launched beside, declaring its catalogue,
-its storage and its settings (declaration.py) and its pages (page.py), and
-serves them. Then it hears what the lake wants of it, names each subject as
-one of Polymarket's outcome tokens and records it, and keeps each standing
-want current -- the SDK's work for an event-contract venue
-(`meridian.roles.data.event_contracts.Feed`, over Polymarket's conversion in
-convert.py) -- until stopped. Everything goes through the sidecar; nothing
+It runs its data role class, `Lake` -- the SDK's work for an event-contract
+venue (`meridian.roles.data.event_contracts.Feed`, over Polymarket's
+conversion in convert.py) -- on the sidecar it is launched beside, declaring
+its catalogue, its storage and its settings (declaration.py) and its pages
+(page.py), which `meridian.run` serves. It hears what the lake wants of it,
+names each subject as one of Polymarket's outcome tokens and records it, and
+keeps each standing want current until stopped. Everything goes through the sidecar; nothing
 but Polymarket's public reads are called, and with sample data not even that
 (synthetic.py). Nothing is asked of Polymarket until the lake wants
 something of it, and then only the contracts wanted.
@@ -26,6 +26,12 @@ RPC URL, reads UMA's oracle for a proposal's and a dispute's answer and its
 challenge window (uma.py; ruling 622). The URL is a secret: it is read from
 the settings delivered and never logged.
 
+From 0.12.0 (open-meridian 0.35, each role one class: rulings 1004, 1005,
+1009 to 1023) the role's work is `Lake`, registered with `meridian.run`,
+which delivers the settings, serves the pages, sets the figures on each
+heartbeat and starts `Lake.run` again after a backoff should it fail -- the
+work the plugin wired by hand before.
+
 It holds nothing it cannot lose: Polymarket's raw responses and the contract map
 are kept in the storage the deployment grants it (decisions/028), and a
 restart reads the map back and hears again what the lake wants.
@@ -35,14 +41,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-import signal
-from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 import meridian
 from meridian.edge import RawStore, storage_root
-from meridian.roles.data import cancelled
 from meridian.roles.data.event_contracts import ContractMap, Feed
 
 from .convert import CASH, PolymarketMarket
@@ -58,6 +62,9 @@ log = logging.getLogger("polymarket")
 #: Where a developer's recorded exchanges are replayed from, under the
 #: plugin's storage, when `make e2e-recorded` mounts them there.
 RECORDED = "recorded"
+#: How often its datasets' licences are read again and whether Polymarket
+#: answers is said on its health.
+HEALTH_EVERY_SECONDS = 60
 
 
 def market(store: RawStore, synthetic: bool, rpc_url: str = "") -> PolymarketMarket:
@@ -100,27 +107,26 @@ def contract_map(store: RawStore, mode: str) -> ContractMap:
     return held
 
 
-async def watch_settings(
-    plugin: meridian.Plugin, feed: Feed, store: RawStore, configured: asyncio.Event
-) -> None:
-    """Each delivery of the settings: the source switched where synthetic
-    mode changed, its own contract map read back from storage, and each day's
-    raw responses past their window moved. Whatever it answers from, nothing
-    is asked of the venue, and nothing resolved, until the lake wants
-    something of it."""
-    while True:
-        try:
-            await _apply_settings(plugin, feed, store, configured)
-        except Exception as failed:  # noqa: BLE001 - the stream broke: said, and watched again
-            log.warning("the settings' stream broke, watching again: %s", failed)
-        await asyncio.sleep(2)
+@dataclass
+class Lake(Feed):
+    """The data role's class: the SDK's event-contract feed over
+    Polymarket's conversion, which hears what the lake wants and keeps its
+    standing wants current, held until the settings have said where to
+    answer from."""
 
+    store: RawStore | None = None
+    #: Set once the first settings have said where to answer from.
+    configured: asyncio.Event = field(default_factory=asyncio.Event)
+    #: The Polygon RPC URL last delivered: a secret, never logged.
+    rpc_url: str = field(default="", repr=False)
 
-async def _apply_settings(
-    plugin: meridian.Plugin, feed: Feed, store: RawStore, configured: asyncio.Event
-) -> None:
-    rpc_held = ""
-    async for delivered in plugin.settings():
+    async def on_settings(self, delivered: Any) -> None:
+        """Each delivery of the settings: the source switched where synthetic
+        mode changed, its own contract map read back from storage, UMA's
+        oracle read through the RPC URL where it is set, and each day's raw
+        responses past their window moved. Whatever it answers from, nothing
+        is asked of the venue, and nothing resolved, until the lake wants
+        something of it."""
         values = delivered.values
         rpc = values.get(POLYGON_RPC_URL)
         rpc_url = rpc.strip() if isinstance(rpc, str) else ""
@@ -128,128 +134,88 @@ async def _apply_settings(
         log.info("settings delivered: sample data %s, Polygon RPC %s",
                  values.get(SAMPLE_DATA), "set" if rpc_url else "not set")  # fmt: skip
         synthetic = values.get(SAMPLE_DATA) is True
-        mode = feed.market.session.mode
-        if synthetic != (mode != "live"):
+        store = self.store
+        if store is not None and synthetic != (self.market.session.mode != "live"):
             chosen = market(store, synthetic, rpc_url)
-            feed.use(chosen, contract_map(store, chosen.session.mode))
+            self.use(chosen, contract_map(store, chosen.session.mode))
             log.info("answering from %s", chosen.session.mode)
-        elif not synthetic and rpc_url != rpc_held:
-            held = feed.market
+        elif store is not None and not synthetic and rpc_url != self.rpc_url:
+            held = self.market
             if isinstance(held, PolymarketMarket):
                 held.read_on_chain(Uma(rpc_url, store, held.client.health) if rpc_url else None)
-        rpc_held = rpc_url
-        configured.set()
-        await tend_now(plugin, store, values)
+        self.rpc_url = rpc_url
+        self.configured.set()
+        if store is not None:
+            window = values.get(f"{KIND}_window_days")
+            past = values.get(f"{KIND}_past_window")
+            await store.tend(
+                self.plugin,
+                window if isinstance(window, int) else WINDOW_DAYS,
+                past if isinstance(past, str) else "kept",
+                datetime.now(UTC).date(),
+            )
 
+    async def on_observations_wanted(self, heard: Any) -> None:
+        """What the lake wants, once the settings have said where to answer
+        from."""
+        await self.configured.wait()
+        await super().on_observations_wanted(heard)
 
-async def tend_now(plugin: meridian.Plugin, store: RawStore, values: Mapping[str, object]) -> None:
-    window = values.get(f"{KIND}_window_days")
-    past = values.get(f"{KIND}_past_window")
-    await store.tend(
-        plugin,
-        window if isinstance(window, int) else WINDOW_DAYS,
-        past if isinstance(past, str) else "kept",
-        datetime.now(UTC).date(),
-    )
+    async def run(self) -> None:
+        """Once the settings have said where to answer from: each standing
+        want kept current; the events of the contracts served reported as
+        Polymarket states them (`Feed.keep_events`); each contract served's
+        hourly and daily bars, built from its market's public trades on the
+        UTC day the `bars` dataset declares (`Feed.keep_bars`; ruling 624),
+        once a contract is served; and its health said each minute."""
+        await self.configured.wait()
+        await asyncio.gather(self.keep_current(), self.keep_events(), self._bars(), self._health())
 
+    async def _bars(self) -> None:
+        # Nothing is asked -- not even the venue resolved -- until a contract
+        # is served: the lake wanting something of the plugin comes first.
+        while not self.contracts.mapped():
+            await asyncio.sleep(5)
+        await self.keep_bars(BARS)
 
-async def hear_wants(plugin: meridian.Plugin, feed: Feed, configured: asyncio.Event) -> None:
-    """What the lake wants, once the settings have said where to answer from."""
-    await configured.wait()
-    await plugin.receive(observations_wanted=feed.on_want, want_withdrawn=feed.on_withdrawn)
-
-
-async def report_events(feed: Feed, configured: asyncio.Event) -> None:
-    """Once the settings have said where to answer from: the events of the
-    contracts served, reported as Polymarket states them -- the SDK's
-    `Feed.keep_events` (open-meridian 0.32.0), each event read once its
-    first contract is served and every ten minutes after, reported where it
-    is new or Polymarket states it otherwise, and one held back while a member
-    does not resolve read again on the next pass."""
-    await configured.wait()
-    await feed.keep_events()
-
-
-async def keep_bars(feed: Feed, configured: asyncio.Event) -> None:
-    """Once the settings have said where to answer from: each contract
-    served's hourly and daily bars, built from its market's public trades --
-    the SDK's `Feed.keep_bars` (open-meridian 0.33.1), each pass every five
-    minutes, the first reading 30 days back -- on the UTC day the `bars`
-    dataset declares."""
-    await configured.wait()
-    # Nothing is asked -- not even the venue resolved -- until a contract is
-    # served: the lake wanting something of the plugin comes first.
-    while not feed.contracts.mapped():
-        await asyncio.sleep(5)
-    await feed.keep_bars(BARS)
-
-
-async def report_health(plugin: meridian.Plugin, feed: Feed) -> None:
-    """Each minute: its datasets' licences read again (contract v20), and
-    on the heartbeat whether Polymarket answers, with the data role's figures."""
-    while True:
-        try:
-            await feed.read_licences()
-        except meridian.MeridianError as failed:
-            log.warning("licences not read: %s", failed)
-        health = feed.market.session.health
-        healthy = health.last_ok_ns >= health.last_failed_ns
-        detail = f"{feed.market.name} answers" if healthy else health.last_error
-        try:
-            await plugin.report(healthy=healthy, detail=detail[:200], figures=figures_now())
-        except (meridian.MeridianError, ValueError) as failed:
-            log.warning("health not reported: %s", failed)
-        await asyncio.sleep(60)
-
-
-def _said(task: asyncio.Task[None]) -> None:
-    """A task that stopped, said with why, and the plugin stopped with it: a
-    restart starts it again."""
-    if not task.cancelled() and task.exception() is not None:
-        log.error("stopped: %r", task.exception(), exc_info=task.exception())
-        os._exit(1)
-
-
-async def run() -> None:
-    stopped = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for stop in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(stop, stopped.set)
-
-    port = PORT
-    # The version's whole declaration (declaration.py): its settings, its
-    # pages with the levels each serves and their tools, and its documentation.
-    # A version registers exactly what it was uploaded with (contract v25).
-    async with await meridian.connect(declaration=DECLARATION) as plugin:
-        log.info("registered as %s, roles %s", plugin.identity.instance_id, plugin.identity.roles)
-        store = RawStore(storage_root(), KIND)
-        chosen = market(store, synthetic=False)
-        feed = Feed(plugin, chosen, contract_map(store, chosen.session.mode))
-        hold(feed)
-        served = pages.serve(plugin, port)
-        configured = asyncio.Event()
-        tasks = [
-            asyncio.create_task(watch_settings(plugin, feed, store, configured)),
-            asyncio.create_task(hear_wants(plugin, feed, configured)),
-            asyncio.create_task(feed.keep_current()),
-            asyncio.create_task(report_health(plugin, feed)),
-            asyncio.create_task(report_events(feed, configured)),
-            asyncio.create_task(keep_bars(feed, configured)),
-        ]
-        for task in tasks:
-            task.add_done_callback(_said)
-        await stopped.wait()
-        log.info("stopping")
-        for task in tasks:
-            await cancelled(task)
-        served.shutdown()
+    async def _health(self) -> None:
+        """Each minute: its datasets' licences read again (contract v20), and
+        on its health whether Polymarket answers."""
+        while True:
+            try:
+                await self.read_licences()
+            except meridian.MeridianError as failed:
+                log.warning("licences not read: %s", failed)
+            health = self.market.session.health
+            healthy = health.last_ok_ns >= health.last_failed_ns
+            detail = f"{self.market.name} answers" if healthy else health.last_error
+            try:
+                await self.plugin.report(healthy=healthy, detail=detail[:200])
+            except (meridian.MeridianError, ValueError) as failed:
+                log.warning("health not reported: %s", failed)
+            await asyncio.sleep(HEALTH_EVERY_SECONDS)
 
 
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
-    asyncio.run(run())
+    store = RawStore(storage_root(), KIND)
+    chosen = market(store, synthetic=False)
+    lake = Lake(chosen, contract_map(store, chosen.session.mode), store=store)
+    hold(lake)
+    # The version's whole declaration (declaration.py): its settings, its
+    # pages with the levels each serves and their tools, and its
+    # documentation. A version registers exactly what it was uploaded with
+    # (contract v25).
+    meridian.run(
+        declaration=DECLARATION,
+        roles=[lake],
+        pages=pages,
+        port=PORT,
+        on_settings=lake.on_settings,
+        figures=figures_now,
+    )
 
 
 if __name__ == "__main__":

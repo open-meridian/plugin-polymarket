@@ -69,7 +69,7 @@ def test_with_no_fee_of_its_own_its_one_category_applies_else_none() -> None:
 
 def test_connection_says_which_fee_applies_to_each_contract_served() -> None:
     lake = Lake(v.VENUE)
-    feed = Feed(lake, v.market(), ContractMap(), clock_ns=lambda: v.NOW_NS)
+    feed = lake.bind(Feed(v.market(), ContractMap(), clock_ns=lambda: v.NOW_NS))
     mayor = v.event(v.MAYOR_CONDITION).members[0]
 
     async def served() -> None:

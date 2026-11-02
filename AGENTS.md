@@ -11,11 +11,13 @@ it. It is the international Polymarket, for users outside the US (ruling
 488); US users use plugin-polymarket-us, a separate venue (QCEX) and
 plugin. Never read or name Polymarket US here.
 
-- `src/polymarket/__main__.py` connects to the sidecar declaring the
-  catalogue, the storage and the settings (`declaration.py`) and the pages
-  (`page.py`), serves them, hears what the lake wants
-  (`plugin.receive(observations_wanted=..., want_withdrawn=...)`) and keeps
-  each standing want current.
+- `src/polymarket/__main__.py` holds the data role's class, `Lake` (the
+  SDK's `event_contracts.Feed`, open-meridian 0.35: each role one class),
+  and registers it with `meridian.run`, declaring the catalogue, the storage
+  and the settings (`declaration.py`) and the pages (`page.py`): `run`
+  serves them, delivers the settings to `Lake.on_settings`, hands what the
+  lake wants to `Lake.on_observations_wanted` and `on_want_withdrawn`, and
+  runs `Lake.run`, which keeps each standing want current.
 - **Polymarket's vocabulary is read in one place.** `venue.py` is the HTTP
   client (the standard library's: no third-party dependency), every answer
   kept as a raw record before anything is read from it (`meridian.edge.RawStore`);
@@ -27,7 +29,7 @@ plugin. Never read or name Polymarket US here.
   answers instead of Polymarket with sample data: the synthetic exchanges
   in `src/polymarket/synthetic/`, or a developer's recorded ones.
 - **What every data plugin of an event-contract venue does is the SDK's**
-  (open-meridian 0.33.1; nothing is copied between plugins): naming each
+  (open-meridian 0.35.0; nothing is copied between plugins): naming each
   subject, resolving the cash and the venue, recording prices, quotes and
   outcomes, answering wants and keeping them current, and reporting an
   event's group (contract v26), kept current by `Feed.keep_events`

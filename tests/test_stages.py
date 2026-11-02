@@ -176,10 +176,10 @@ def test_without_the_setting_a_proposal_records_nothing_as_before(tmp_path: Path
 
 async def test_proposed_then_disputed_each_a_version_of_one_outcome(tmp_path: Path) -> None:
     lake = Lake(v.VENUE)
-    feed = Feed(lake, _market(tmp_path, chain=True), ContractMap(), clock_ns=lambda: v.NOW_NS)
+    feed = lake.bind(Feed(_market(tmp_path, chain=True), ContractMap(), clock_ns=lambda: v.NOW_NS))
     subject = await lake.held(feed, v.PROPOSED)
     await feed.name([subject])
-    assert await feed.record_outcomes([feed.contracts.serving(subject)]) == 1
+    assert await feed.record_outcomes_of([feed.contracts.serving(subject)]) == 1
     [proposed] = lake.rows("RecordOutcomes")
     assert ops.OutcomeStage.Name(proposed.stage) == "OUTCOME_STAGE_PROPOSED"
     assert ops.OutcomeDetermination.Name(proposed.determination) == "OUTCOME_DETERMINATION_PAYS"
@@ -198,15 +198,15 @@ async def test_proposed_then_disputed_each_a_version_of_one_outcome(tmp_path: Pa
 
 def test_connection_says_whether_the_rpc_is_set_and_never_its_url(tmp_path: Path) -> None:
     market = _market(tmp_path, chain=False)
-    page.hold(Feed(Lake(v.VENUE), market, ContractMap(), clock_ns=lambda: v.NOW_NS))
+    page.hold(Lake(v.VENUE).bind(Feed(market, ContractMap(), clock_ns=lambda: v.NOW_NS)))
     try:
         client = PageClient(page.pages)
         assert "Polygon RPC URL" not in client.get("/", "admin").text, "sample data calls nothing"
         live = PolymarketMarket(market.client, "live")
-        page.hold(Feed(Lake(v.VENUE), live, ContractMap(), clock_ns=lambda: v.NOW_NS))
+        page.hold(Lake(v.VENUE).bind(Feed(live, ContractMap(), clock_ns=lambda: v.NOW_NS)))
         assert "Not set: outcomes are recorded final only" in client.get("/", "admin").text
         live.read_on_chain(_uma(tmp_path, _Posted()))
-        page.hold(Feed(Lake(v.VENUE), live, ContractMap(), clock_ns=lambda: v.NOW_NS))
+        page.hold(Lake(v.VENUE).bind(Feed(live, ContractMap(), clock_ns=lambda: v.NOW_NS)))
         shown = client.get("/", "admin").text
         said = client.call_tool("read_connection", level="admin").data
         assert "Set by the deployment admin (secret)" in shown
