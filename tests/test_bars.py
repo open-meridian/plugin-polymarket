@@ -60,7 +60,7 @@ async def test_hours_and_days_closed_kept_from_the_synthetic_finals_trades(
 ) -> None:
     lake = Lake(v.VENUE)
     market = _market(tmp_path)
-    feed = Feed(lake, market, ContractMap(), clock_ns=lambda: v.NOW_NS)
+    feed = lake.bind(Feed(market, ContractMap(), clock_ns=lambda: v.NOW_NS))
     await feed.name([await lake.held(feed, v.BASE)])
     assert await feed.keep_bars(v.BARS_DECLARED, once=True) == 5
     bars = lake.rows("RecordBars")

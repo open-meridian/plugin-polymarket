@@ -28,8 +28,10 @@ class Clock:
 
 
 def _feed(lake: Lake) -> event_contracts.Feed:
-    return event_contracts.Feed(
-        lake, venue.market(), event_contracts.ContractMap(), clock_ns=lambda: venue.NOW_NS
+    return lake.bind(
+        event_contracts.Feed(
+            venue.market(), event_contracts.ContractMap(), clock_ns=lambda: venue.NOW_NS
+        )
     )
 
 
