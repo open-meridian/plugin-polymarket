@@ -281,8 +281,12 @@ class Polymarket:
         """The market an outcome token belongs to, by the token's ID: a list,
         empty where Polymarket knows no market by it. `live`, read again for
         its outcome, kept as a line of the day's live responses, added only
-        when it changed."""
-        return self._get("market", token, GAMMA, "/markets", {"clob_token_ids": token}, live=live)
+        when it changed. Its tags asked with it (`include_tag`), for its
+        category (contract 30, 1035)."""
+        return self._get(
+            "market", token, GAMMA, "/markets", {"clob_token_ids": token, "include_tag": "true"},
+            live=live,
+        )  # fmt: skip
 
     def condition(self, condition_id: str) -> Fetched:
         """The market of a condition, by its ID (contract v26: the event it

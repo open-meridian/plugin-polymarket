@@ -20,21 +20,21 @@ It is one of the lake's second batch, with
 [plugin-kalshi](https://github.com/open-meridian/plugin-kalshi): each runs the SDK's
 data suite and its checks for an event-contract venue unchanged against its own conversion
 (meridian-design `plans/the-lake-prices-the-book.md`, row 20); what the two do alike is
-the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.35.1), never copied
+the SDK's (`meridian.roles.data.event_contracts`, open-meridian 0.36.1), never copied
 between them.
 
-**Status.** 0.12.0, built on open-meridian 0.35.1 (contract v29; from 0.12.0 its work is one class for its role, `Lake` -- the SDK's event-contract feed -- registered with `meridian.run`; contract v28: a proposal's and a dispute's stage read from UMA's oracle on chain, each token's hourly and daily bars from its public trades, the fee applying to each market on Connection, its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
+**Status.** 0.13.0, built on open-meridian 0.36.1 (contract 30: each dataset describes Polymarket's terms in words and how a gap in it is recovered, no licence declared; each contract's category stated with its terms; contract v29: from 0.12.0 its work is one class for its role, `Lake` -- the SDK's event-contract feed -- registered with `meridian.run`; contract v28: a proposal's and a dispute's stage read from UMA's oracle on chain, each token's hourly and daily bars from its public trades, the fee applying to each market on Connection, its feed delay reported on its quotes, a crossed quote recorded invalid at the edge, its published fee rate by market category on Connection; contract v27: the events kept by the SDK's `Feed.keep_events`; contract v26: each contract's event reported as a group; contract v25's whole declaration and docs/, which a deployment shows on its Documentation tab; its work the SDK's role helpers), holding the
 role `data`, and proven against the core it pins, by digest.
 
 ## What it does
 
 Three datasets, declared from code in its catalogue (`declaration.py`):
 
-| Dataset | Data | Modes | Day | Default licence |
+| Dataset | Data | Modes | Day | A gap in it |
 |---|---|---|---|---|
-| `<instance>:live` | each token's last trade, best bid and offer as prices; its best bid and offer with sizes as a quote | pull, stream | `Etc/UTC`, ending at 00:00 | kept two days |
-| `<instance>:outcomes` | each token's outcome once its market is resolved, final (contract v23); from 0.11.0 proposed and disputed first, where a Polygon RPC URL is set | push | `Etc/UTC`, ending at 00:00 (an outcome names no business date) | kept |
-| `<instance>:bars` | from 0.11.0, each token's hourly and daily bars, built from its public trades, trades counted, no volume-weighted price | pull, push | `Etc/UTC`, ending at 00:00 | kept |
+| `<instance>:live` | each token's last trade, best bid and offer as prices; its best bid and offer with sizes as a quote | pull, stream | `Etc/UTC`, ending at 00:00 | not fetched again (`stream_only`) |
+| `<instance>:outcomes` | each token's outcome once its market is resolved, final (contract v23); from 0.11.0 proposed and disputed first, where a Polygon RPC URL is set | push | `Etc/UTC`, ending at 00:00 (an outcome names no business date) | not fetched again (`stream_only`): Polymarket and UMA state the current stage only |
+| `<instance>:bars` | from 0.11.0, each token's hourly and daily bars, built from its public trades, trades counted, no volume-weighted price | pull, push | `Etc/UTC`, ending at 00:00 | asked again of the public trades (`backfill`) |
 
 - **Per subject wanted, never the whole venue.** A reader reads a price or
   quote nothing has recorded; the lake asks this plugin (a want). The plugin
@@ -72,11 +72,16 @@ Three datasets, declared from code in its catalogue (`declaration.py`):
   day or range already past: Polymarket's public reads answer now),
   `source_silent` (Polymarket states nothing for it). A standing want keeps
   its subjects current, at most once a second, until the lake withdraws it.
-- **Kept two days**, by default, as a live dataset (the plan's Q21). The
-  deployment admin states the deployment's own licence on the Data sources
-  page, which replaces the default; the default claims nothing about
-  Polymarket's terms, which are for the deployment admin and whoever uses
-  the deployment to settle.
+- **Polymarket's terms, in words** (contract 30, ruling 1032): each
+  dataset describes Polymarket's Terms of Use (`declared.TERMS`, and the
+  Polygon RPC provider's for the outcomes read on chain) -- free, no key; a
+  personal, limited licence; data mining tools barred; a capital-markets
+  client or market data distributor needs Polymarket's written agreement --
+  shown on Data sources and in `docs/terms.md`. The plugin declares no
+  licence: the deployment admin states the deployment's own on the Data
+  sources page (two days kept suits a live dataset, the plan's Q21); until
+  one is set, the lake keeps the rows and reads every use right
+  restrictively.
 - **Outcomes** (contract v23; meridian-design `plans/the-lake-prices-the-book.md`,
   "vL1c"). For each token a reader asked about, the plugin records its
   outcome, unasked, once Polymarket resolves its market (Gamma's
@@ -90,8 +95,11 @@ Three datasets, declared from code in its catalogue (`declaration.py`):
   arrived, its payout time left 0 (holders redeem their tokens
   themselves). One row key per token (`<token>:outcome`), each stage a new
   version of it; a token past its market's end is read again each minute
-  until its final outcome is recorded. Kept by default; paying holders is
-  servicing's, not the lake's.
+  until its final outcome is recorded. Paying holders is servicing's, not
+  the lake's. **Its category** (contract 30, 1035): the market's tags are
+  asked with it (`include_tag`), and the one that is a category of
+  Polymarket's published table (`fees.category`) is stated with its terms
+  at its resolve; none where no tag is one, or several are.
 - **A proposal and a dispute** (from 0.11.0; ruling 622). Gamma states
   their stage (`proposed`, `disputed`) but never their answer -- its
   `outcomePrices` stay the book's while one stands, and `umaEndDate` is

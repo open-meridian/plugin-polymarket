@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.13.0
+
+On open-meridian 0.36.1, contract 30, on core aae501d's harness (contract v30,
+chart 0.1.538).
+
+- **Polymarket's terms in words** (ruling 1032): `licence_default` is gone
+  from the contract. `meridian plugin migrate --to 0.36.0` wrote each licence
+  as words ("Kept by the lake; kept 2 days at most."), which said what the
+  lake did; each dataset now describes Polymarket's Terms of Use
+  (`declared.TERMS`): free, no key; a personal, limited, revocable licence;
+  data mining tools barred; a capital-markets client or market data
+  distributor needs Polymarket's written agreement; trading not permitted in
+  its restricted jurisdictions, the United States among them. The outcomes'
+  (`OUTCOME_TERMS`) add the Polygon RPC provider the deployment chooses. The
+  plugin declares no licence: until a deployment admin sets one on Data
+  sources, the lake keeps the rows and reads every use right restrictively.
+- **How a gap is recovered** (W10.14): `live` and `outcomes` `stream_only`
+  (no history of a book; Polymarket and UMA state the current stage only,
+  and a want of `outcomes` is not answered), `bars` `backfill` (built from
+  the public trades back in time). No sessions calendar (Polymarket trades
+  around the clock), no `most_shards`.
+- **A contract's category stated** (1035): the market is asked with its tags
+  (`include_tag=true`, the same request), and the one tag that is a category
+  of Polymarket's published table (`fees.category`) is stated with its terms
+  at ResolveIdentifier; none where no tag is one, or several are.
+- **open-meridian 0.36.1** (`meridian plugin migrate --to 0.36.1`, pins
+  only): on 0.36.0 every resolve raised, the payout stated in pUSD, which has
+  no ISO 4217 code; 0.36.1 states it by the cash's resolved record, else the
+  category alone.
+- **Pins**: open-meridian 0.36.1 and its base by digest; meridian 0.1.60 in
+  the check workflow; core's runtime and harness at `aae501d`, by digest. The
+  e2e reads each dataset's terms in words, its gap recovery and no licence
+  set before the admin licenses them.
+- The tests' raw store stand-in takes `RawStore.tend`'s signature (mypy).
+
 ## 0.12.0
 
 On open-meridian 0.35.1, contract v29 (rulings 1003, 1004, 1005, 1009 to

@@ -39,6 +39,23 @@ def test_each_token_of_a_market_is_its_own_binary_contract_paying_one_usdc() -> 
     assert convert.contract("333", GAMMA, "raw") is None
 
 
+def test_its_category_is_the_one_published_category_among_its_tags() -> None:
+    # Contract 30 (1035): Gamma's tags, asked with the market; the one that
+    # is a category of Polymarket's published table, else none stated.
+    def tagged(*labels: str) -> Any:
+        return GAMMA | {"tags": [{"id": str(i), "label": t} for i, t in enumerate(labels)]}
+
+    def category(body: dict[str, Any]) -> str:
+        read = convert.contract("111", body, "raw")
+        assert read is not None
+        return read.category
+
+    assert category(tagged("Synthetic index", "Finance")) == "Finance"
+    assert category(tagged("Tennis", "Sports", "Games")) == "Sports"
+    assert category(tagged("Politics", "Finance")) == "", "several categories: none stated"
+    assert category(tagged("HFC", "World")) == "" and category(GAMMA) == ""
+
+
 def test_a_market_of_three_outcomes_is_not_binary_and_a_closed_one_not_traded() -> None:
     three = GAMMA | {"outcomes": '["A", "B", "C"]', "clobTokenIds": '["111", "222", "333"]'}
     read = convert.contract("111", three, "raw")
@@ -149,6 +166,8 @@ def test_a_token_is_read_with_its_outcome_and_when_its_answer_arrived() -> None:
     assert resolved.read_at_ns == venue.NOW_NS and not resolved.tradable
     active = market.contract(venue.BASE)
     assert active is not None and active.resolution is None
+    # Its category stated with its terms at its resolve (contract 30, 1035).
+    assert active.category == "Sports"
 
 
 # ── Contract v26: events ────────────────────────────────────────────────────

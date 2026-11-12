@@ -54,7 +54,7 @@ def test_each_call_asks_for_one_token(tmp_path: Path) -> None:
     client.book(T)
     client.last_trade(T)
     assert scripted.asked == [
-        f"{GAMMA}/markets?clob_token_ids={T}",
+        f"{GAMMA}/markets?clob_token_ids={T}&include_tag=true",  # its tags: its category
         f"{CLOB}/book?token_id={T}",
         f"{CLOB}/last-trade-price?token_id={T}",
     ]

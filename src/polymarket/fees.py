@@ -131,6 +131,14 @@ def stated(body: Mapping[str, Any]) -> str | None:
     return ", ".join(parts)
 
 
+def category(tags: Sequence[str]) -> str:
+    """The market's category (contract 30, 1035): the one tag label of
+    Polymarket's published categories (the fee table's) among its tags;
+    empty where none is, or several are."""
+    found = sorted({t for t in tags if t in BY_CATEGORY})
+    return found[0] if len(found) == 1 else ""
+
+
 def market_fee(code: str, said: str | None, tags: Sequence[str] | None) -> MarketFee:
     """The fee applying to one contract: its market's own (`said`, as
     `stated` read it), else its event's category's row by the event's tag
