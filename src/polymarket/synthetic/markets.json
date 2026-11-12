@@ -331,7 +331,19 @@
     "takerOnly": true,
     "rebateRate": 0.15
    },
-   "feeType": "sports_fees_v3"
+   "feeType": "sports_fees_v3",
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "900102",
+     "label": "Synthetic league",
+     "slug": "synthetic-league"
+    }
+   ]
   }
  ],
  "60000000000000000000000000000000000000000000000000000000000000000000000000067": [
@@ -453,7 +465,19 @@
     "takerOnly": true,
     "rebateRate": 0.15
    },
-   "feeType": "sports_fees_v3"
+   "feeType": "sports_fees_v3",
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "900102",
+     "label": "Synthetic league",
+     "slug": "synthetic-league"
+    }
+   ]
   }
  ],
  "80000000000000000000000000000000000000000000000000000000000000000000000000081": [

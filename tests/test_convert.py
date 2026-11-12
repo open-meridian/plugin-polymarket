@@ -167,7 +167,7 @@ def test_a_token_is_read_with_its_outcome_and_when_its_answer_arrived() -> None:
     active = market.contract(venue.BASE)
     assert active is not None and active.resolution is None
     # Its category stated with its terms at its resolve (contract 30, 1035).
-    assert active.category == "Finance"
+    assert active.category == "Sports"
 
 
 # ── Contract v26: events ────────────────────────────────────────────────────
