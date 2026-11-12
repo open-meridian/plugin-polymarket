@@ -29,7 +29,19 @@
    "startDateIso": "2026-09-01",
    "updatedAt": "2026-10-10T11:59:00.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "tags": [
+    {
+     "id": "900100",
+     "label": "Synthetic index",
+     "slug": "synthetic-index"
+    },
+    {
+     "id": "120",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "10000000000000000000000000000000000000000000000000000000000000000000000000018": [
@@ -62,7 +74,19 @@
    "startDateIso": "2026-09-01",
    "updatedAt": "2026-10-10T11:59:00.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "tags": [
+    {
+     "id": "900100",
+     "label": "Synthetic index",
+     "slug": "synthetic-index"
+    },
+    {
+     "id": "120",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "20000000000000000000000000000000000000000000000000000000000000000000000000029": [
@@ -197,7 +221,19 @@
    "umaResolutionStatuses": "[\"proposed\"]",
    "updatedAt": "2026-10-09T18:02:07.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "900101",
+     "label": "Synthetic football",
+     "slug": "synthetic-football"
+    }
+   ]
   }
  ],
  "40000000000000000000000000000000000000000000000000000000000000000000000000054": [
@@ -233,7 +269,19 @@
    "umaResolutionStatuses": "[\"proposed\"]",
    "updatedAt": "2026-10-09T18:02:07.000000Z",
    "volume": "820311.5",
-   "volumeNum": 820311.5
+   "volumeNum": 820311.5,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "900101",
+     "label": "Synthetic football",
+     "slug": "synthetic-football"
+    }
+   ]
   }
  ],
  "52114319501245915516055106046884209969926127482827954674443846427813813222426": [
@@ -694,7 +742,19 @@
      "negRisk": true
     }
    ],
-   "groupItemTitle": "Synthetic candidate A"
+   "groupItemTitle": "Synthetic candidate A",
+   "tags": [
+    {
+     "id": "2",
+     "label": "Politics",
+     "slug": "politics"
+    },
+    {
+     "id": "3",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "90000000000000000000000000000000000000000000000000000000000000000000000000932": [
@@ -737,7 +797,19 @@
      "negRisk": true
     }
    ],
-   "groupItemTitle": "Synthetic candidate A"
+   "groupItemTitle": "Synthetic candidate A",
+   "tags": [
+    {
+     "id": "2",
+     "label": "Politics",
+     "slug": "politics"
+    },
+    {
+     "id": "3",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "90000000000000000000000000000000000000000000000000000000000000000000000000941": [
@@ -780,7 +852,19 @@
      "negRisk": true
     }
    ],
-   "groupItemTitle": "Synthetic candidate B"
+   "groupItemTitle": "Synthetic candidate B",
+   "tags": [
+    {
+     "id": "2",
+     "label": "Politics",
+     "slug": "politics"
+    },
+    {
+     "id": "3",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "90000000000000000000000000000000000000000000000000000000000000000000000000942": [
@@ -823,7 +907,19 @@
      "negRisk": true
     }
    ],
-   "groupItemTitle": "Synthetic candidate B"
+   "groupItemTitle": "Synthetic candidate B",
+   "tags": [
+    {
+     "id": "2",
+     "label": "Politics",
+     "slug": "politics"
+    },
+    {
+     "id": "3",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "90000000000000000000000000000000000000000000000000000000000000000000000000951": [
@@ -867,7 +963,19 @@
     }
    ],
    "groupItemTitle": "Other",
-   "negRiskOther": true
+   "negRiskOther": true,
+   "tags": [
+    {
+     "id": "2",
+     "label": "Politics",
+     "slug": "politics"
+    },
+    {
+     "id": "3",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "90000000000000000000000000000000000000000000000000000000000000000000000000952": [
@@ -911,7 +1019,19 @@
     }
    ],
    "groupItemTitle": "Other",
-   "negRiskOther": true
+   "negRiskOther": true,
+   "tags": [
+    {
+     "id": "2",
+     "label": "Politics",
+     "slug": "politics"
+    },
+    {
+     "id": "3",
+     "label": "Finance",
+     "slug": "finance"
+    }
+   ]
   }
  ],
  "20000000000000000000000000000000000000000000000000000000000000000000000000037": [

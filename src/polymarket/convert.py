@@ -315,7 +315,15 @@ def contract(
         raw_key=raw_key,
         resolution=resolution(token, body),
         read_at_ns=received_ns,
+        category=fees.category(_tag_labels(body)),
     )
+
+
+def _tag_labels(body: Mapping[str, Any]) -> list[str]:
+    """A Gamma market's tags' labels, as it answers them with `include_tag`."""
+    tags = body.get("tags")
+    listed = tags if isinstance(tags, list) else []
+    return [str(t["label"]) for t in listed if isinstance(t, Mapping) and t.get("label")]
 
 
 def _yes_token(body: Mapping[str, Any]) -> str:

@@ -26,14 +26,19 @@ upload`:
   unasked (`push`), and a want of `bars` answered from the trades
   (`pull`). Its day is the UTC day, as the live dataset's.
 
-**Its licence defaults**: `live` keeps its rows two days (the plan's Q21 for
-a live dataset). `bars` is kept: a closed interval's bar does not change.
-`outcomes` is kept: an outcome is read back by the version
-in force or as of a time, which a dataset not kept cannot answer (a plugin's
-choice within contract v23, approved 2026-10-13). Neither default claims
-anything about Polymarket's terms, which the deployment admin settles with
-whoever uses the deployment; the admin states the deployment's licence on
-the Data sources page, which replaces it.
+**Its terms and pricing** (contract 30, ruling 1032): no dataset declares a
+licence. Each describes Polymarket's published terms in plain words
+(`TERMS`, and `OUTCOME_TERMS` for the outcomes read on chain), shown on Data
+sources and in the plugin's docs: the deployment admin settles them and sets
+the deployment's licence on the Data sources page, which is the one enforced.
+
+**How a gap is recovered** (W10.14): `live` is `stream_only` -- Polymarket
+serves no history of a book or of a last trade as it stood; `outcomes` is
+`stream_only` too -- Polymarket and UMA state a market's current stage, never
+the ones before, and a want of `outcomes` is not answered; `bars` is
+`backfill` -- the public trades go back in time, and a want of a range is
+answered from them. No dataset names a sessions calendar: Polymarket trades
+around the clock.
 
 `venue_id` is empty: the venue master's ID for Polymarket is minted by the
 platform, not known to the code a catalogue is declared from, so each row
@@ -53,7 +58,7 @@ data needs no key.
 """
 
 import meridian
-from meridian import DatasetDeclaration, DatasetLicence
+from meridian import DatasetDeclaration
 
 VENDOR = "Polymarket"
 SAMPLE_DATA = "sample_data"
@@ -90,6 +95,23 @@ SETTINGS = [
     ),
 ]
 
+#: Polymarket's published terms, in plain words (ruling 1032).
+TERMS = (
+    "Polymarket's public market data APIs (Gamma, the CLOB and the data API): free, no key or "
+    "account. Polymarket's Terms of Use grant a personal, limited, revocable licence to its "
+    "site and features, and bar data mining tools, robots and crawlers. A capital-markets "
+    "client or market data distributor may not access or use its data, through an API or on "
+    "chain, nor sell, sublicense or redistribute it, without Polymarket's written agreement. "
+    "Trading on Polymarket is not permitted for persons in its restricted jurisdictions, the "
+    "United States among them."
+)
+#: The outcomes' terms: Polymarket's, and the Polygon RPC's through which
+#: UMA's oracle is read for an open stage.
+OUTCOME_TERMS = TERMS + (
+    " A proposed or disputed stage is read from UMA's oracle on Polygon through the RPC "
+    "provider the deployment chooses, on that provider's terms."
+)
+
 CATALOGUE = [
     DatasetDeclaration(
         key="live",
@@ -98,7 +120,8 @@ CATALOGUE = [
         modes=["pull", "stream"],
         cadence=1,
         history=0,
-        licence_default=DatasetLicence(kept=True, retention_days=2),
+        terms_and_pricing=TERMS,
+        gap_recovery="stream_only",
         day_time_zone="Etc/UTC",
         day_end_minute=0,
     ),
@@ -109,7 +132,8 @@ CATALOGUE = [
         modes=["push"],
         cadence=60,
         history=0,
-        licence_default=DatasetLicence(kept=True),
+        terms_and_pricing=OUTCOME_TERMS,
+        gap_recovery="stream_only",
         day_time_zone="Etc/UTC",
         day_end_minute=0,
     ),
@@ -120,7 +144,8 @@ CATALOGUE = [
         modes=["pull", "push"],
         cadence=300,
         history=30,
-        licence_default=DatasetLicence(kept=True),
+        terms_and_pricing=TERMS,
+        gap_recovery="backfill",
         day_time_zone="Etc/UTC",
         day_end_minute=0,
     ),

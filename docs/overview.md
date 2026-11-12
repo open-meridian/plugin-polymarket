@@ -65,8 +65,7 @@ dollars only through a price of it, never by assuming one for one.
 Once Polymarket resolves the market of a token a reader asked about, the
 plugin records the token's outcome: whether it pays its one pUSD, pays
 nothing, or pays half (an "Unknown/50-50" resolution), from the token's own
-side, so the NO token of a market resolved YES pays nothing. Outcomes are
-kept by default. Paying the holders of a position is not the plugin's: it
+side, so the NO token of a market resolved YES pays nothing. Paying the holders of a position is not the plugin's: it
 records what Polymarket resolved.
 
 Before that, a resolution is proposed, and may be disputed. Polymarket's
@@ -125,7 +124,11 @@ records and asks the platform to match it; a change makes a new version.
 Polymarket's answers, as received, in the storage your deployment gives the
 plugin, for 30 days by default, each price naming the answer it came from.
 Past that window, a day's answers are archived, kept or deleted as you set
-it. Its live dataset's default licence keeps its rows two days; its outcomes
-and bars datasets are kept. A page of trades is kept with each trade's
+it. What the lake keeps of each dataset is your deployment's licence, set
+on the Data sources page: until one is set, the lake keeps the rows and
+reads every use right restrictively. Each dataset describes Polymarket's
+published terms in words, shown there. A gap in the live prices or the
+outcomes is not fetched again; a gap in the bars is asked again of the
+public trades. A page of trades is kept with each trade's
 wallet and names already dropped, and an on-chain answer with its request
 but never your RPC's URL.

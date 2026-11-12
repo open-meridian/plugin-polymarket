@@ -4,9 +4,12 @@
 
 A summary, not legal advice: read the terms themselves, at [polymarket.com](https://polymarket.com), before relying on them.
 
-- Polymarket's terms are for the deployment admin and the people who use the deployment to read, including where they may use Polymarket at all; the plugin's default licence, kept two days, claims nothing about them.
+- Polymarket's public market data needs no key or account, and Polymarket charges nothing for it.
+- Polymarket's Terms of Use grant a personal, limited, revocable licence to its site and features, and bar data mining tools, robots and crawlers.
+- A capital-markets client or a market data distributor may not access or use Polymarket's data, through an API or on chain, nor sell, sublicense or redistribute it, without Polymarket's written agreement.
+- Trading on Polymarket is not permitted for persons in its restricted jurisdictions, the United States among them.
 - The Polygon RPC the plugin reads UMA's oracle through is your deployment's choice of provider, on that provider's terms.
-- A deployment admin states the deployment's own licence on Data sources, which replaces the default.
+- Each dataset describes these terms in words on Data sources; the plugin declares no licence. A deployment admin states the deployment's own licence there.
 
 Nothing here says that a deployment meets them: the licence records what its admin entered.
 

@@ -14,16 +14,13 @@ plugin records outcomes once final.
 
 ## 2. License its datasets
 
-On the dashboard's **Data sources** page, the plugin's datasets are listed
-with their default licences:
-
-- `<instance>:live`: kept two days.
-- `<instance>:outcomes`: kept.
-- `<instance>:bars`: kept.
-
-The default says nothing about Polymarket's terms. Set the deployment's
-licence there, with a note saying why, as you and the people using the
-deployment have settled it. What you enter is what your deployment records.
+On the dashboard's **Data sources** page, the plugin's three datasets are
+listed -- `<instance>:live`, `<instance>:outcomes` and `<instance>:bars` --
+each with Polymarket's published terms described in words. The plugin
+declares no licence. Set the deployment's licence there, with a note saying
+why, as you and Polymarket have settled it (two days kept suits the live
+dataset); until one is set, the lake keeps the rows and reads every use
+right restrictively.
 
 ## 3. Entitle the plugins that read it
 

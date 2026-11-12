@@ -3,9 +3,12 @@ harness (contracts v19 to v27), with sample data, beside a reader (e2e/reader.py
 
 1. Launched: the plugin registers its catalogue; the deployment admin's tool
    lists its one dataset, `live`, of prices and quotes, on the UTC day ending
-   at 00:00, pulled or streamed, its default licence kept two days; from
-   contract v23 `outcomes`, pushed, kept by default; and from 0.11.0
-   `bars`, pulled or pushed, on the UTC day, kept by default.
+   at 00:00, pulled or streamed, a gap in it not fetched again
+   (`stream_only`); from contract v23 `outcomes`, pushed, `stream_only`; and
+   from 0.11.0 `bars`, pulled or pushed, on the UTC day, a gap asked again
+   (`backfill`). From contract 30 (ruling 1032) each describes Polymarket's
+   terms in words and declares no licence: none set yet, each is read
+   restrictively, kept.
 2. Sample data on: nothing is asked of the venue and no record minted
    until the lake wants something -- never the venue's list. The reader then
    names an outcome token as a custodian's book holds it, by the custodian's
@@ -15,9 +18,8 @@ harness (contracts v19 to v27), with sample data, beside a reader (e2e/reader.py
    since the custodian offers no currency (ruling 550) -- a token of a
    market of three outcomes the same way, and the YES token of a market
    Polymarket has resolved YES.
-3. Licensed and entitled: the admin sets each dataset's licence as its
-   default says -- `live` kept two days, `outcomes` kept -- and entitles the
-   reader to both.
+3. Licensed and entitled: the admin sets each dataset's licence -- `live`
+   kept two days, `outcomes` kept -- and entitles the reader to both.
 4. Prices wanted and recorded: the reader follows the token and reads its
    latest; the lake asks the plugin, which reads the record (W3.6), names it
    Polymarket's token by the custodian's symbol, joins Polymarket's own code
@@ -203,21 +205,25 @@ def run():
         return held if DATASET in held else None
     held = until(90, datasets, "step 1, the dataset was not listed")
     must(OUTCOMES in held, f"step 1, the outcomes dataset is listed: {sorted(held)}")
-    entry, licence = held[OUTCOMES]["catalogue_entry"], held[OUTCOMES]["licence"]
-    must(entry["modes"] == ["push"] and licence["kept"] is True
-         and licence["set_by_the_deployment"] is False,
-         f"step 1, outcomes pushed and kept by default: {entry}, {licence}")
     must(BARS in held, f"step 1, the bars dataset is listed: {sorted(held)}")
-    entry, licence = held[BARS]["catalogue_entry"], held[BARS]["licence"]
-    must(entry["modes"] == ["pull", "push"] and entry["day_time_zone"] == "Etc/UTC"
-         and licence["kept"] is True and licence["set_by_the_deployment"] is False,
-         f"step 1, bars pulled or pushed on the UTC day, kept by default: {entry}, {licence}")
-    entry, licence = held[DATASET]["catalogue_entry"], held[DATASET]["licence"]
+    # Contract 30 (ruling 1032): Polymarket's terms in words, no licence
+    # declared; none set yet, each is read restrictively, kept.
+    for key, recovery in ((DATASET, "stream_only"), (OUTCOMES, "stream_only"),
+                          (BARS, "backfill")):
+        entry, licence = held[key]["catalogue_entry"], held[key]["licence"]
+        must("Terms of Use" in entry.get("terms_and_pricing", "")
+             and entry.get("gap_recovery") == recovery
+             and licence["set_by_the_deployment"] is False and licence["kept"] is True,
+             f"step 1, {key}: Polymarket's terms in words, {recovery}, no licence set: "
+             f"{entry}, {licence}")
+    entry = held[OUTCOMES]["catalogue_entry"]
+    must(entry["modes"] == ["push"], f"step 1, outcomes pushed: {entry}")
+    entry = held[BARS]["catalogue_entry"]
+    must(entry["modes"] == ["pull", "push"] and entry["day_time_zone"] == "Etc/UTC",
+         f"step 1, bars pulled or pushed on the UTC day: {entry}")
+    entry = held[DATASET]["catalogue_entry"]
     must(entry["modes"] == ["pull", "stream"] and entry["day_time_zone"] == "Etc/UTC"
          and entry.get("day_end_minute", 0) == 0, f"step 1, its entry: {entry}")
-    must(licence["kept"] is True and licence["retention_days"] == 2
-         and licence["set_by_the_deployment"] is False,
-         f"step 1, its default licence kept two days: {licence}")
 
     # 2. Sample data: nothing asked, nothing minted; then the reader's
     # records, as a custodian's book holds them.
@@ -245,12 +251,12 @@ def run():
         ids = read(f"/resolve?{query}")
     subject, ranged, resolved = ids["contract"], ids["range"], ids["resolved"]
 
-    # 3. Licensed as the default says, and entitled.
+    # 3. Licensed, and entitled.
     runner("licence", DATASET, "kept=true", "retention_days=2", "display=true",
            "personal_use=false", "note=Kept two days, for the e2e's reader.")
     runner("entitle", "--instance", "reader", DATASET, "note=The e2e's reader.")
     runner("licence", OUTCOMES, "kept=true", "retention_days=0", "display=true",
-           "personal_use=false", "note=Kept, as the default says, for the e2e's reader.")
+           "personal_use=false", "note=Kept, for the e2e's reader.")
     runner("entitle", "--instance", "reader", OUTCOMES, "note=The e2e's reader.")
 
     # 4. Prices wanted, recorded, read and heard.
@@ -407,8 +413,8 @@ def run():
          f"step 8, no miss: the venue is held (contract v26's stand-in): {lines}")
 
     print(f"e2e OK in {int(time.time() - started)}s: on core's plugin harness, the live "
-          "dataset of prices and quotes listed by the deployment admin's tool, kept two days "
-          "by default; nothing asked of Polymarket and no record minted before a want; a "
+          "dataset of prices and quotes listed by the deployment admin's tool with "
+          "Polymarket's terms in words, licensed kept two days; nothing asked of Polymarket and no record minted before a want; a "
           "custodian's outcome token, stated by its own symbol and the token's ID, minted by "
           "the platform by the ID, read and named, Polymarket's code joined to it, and its last trade, bid and offer recorded per token on Polymarket's "
           "pUSD record, never the dollar, read and heard; its quote with sizes; its "
