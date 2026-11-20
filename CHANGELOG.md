@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.2
+
+SDK 0.37.0: waits for a lost sidecar.
+
 ## 0.13.1
 
 On open-meridian 0.36.2, contract 30, on core aae501d's harness (contract v30,
